@@ -51,7 +51,7 @@ import {
 import { useReactToPrint } from "react-to-print";
 import Link from "next/link";
 import {
-  companyDetails,
+  companies,
   defaultTerms,
   defaultComponents,
   gstConfig,
@@ -88,6 +88,10 @@ const panelBrands = ["Adani", "Tata", "Waaree", "Reliance", "Premier", "Emvee", 
 const inverterBrands = ["Polycab", "Shakti", "Growatt", "Sungrow", "Huawei", "Deye", "Servotech", "Luminous", "GoodWe", "Solis", "Solax", "Sofar Solar", "Other"];
 
 export default function QuotationBuilder() {
+  // Company Selection
+  const [selectedCompanyId, setSelectedCompanyId] = useState(companies[0].id);
+  const activeCompany = useMemo(() => companies.find(c => c.id === selectedCompanyId) || companies[0], [selectedCompanyId]);
+
   // Customer Details
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
@@ -269,7 +273,7 @@ export default function QuotationBuilder() {
           state_subsidy: stateSubsidy,
           terms,
           components,
-          salesperson: companyDetails.authorizedSignatory
+          salesperson: activeCompany.authorizedSignatory
         })
       });
       console.log("Quotation auto-saved to database");
@@ -335,7 +339,8 @@ export default function QuotationBuilder() {
         savings: calculations,
         taxRate: gstRate / 100,
         components,
-        terms
+        terms,
+        companyDetails: activeCompany
       };
 
       const response = await fetch("/api/quote", {
@@ -456,6 +461,16 @@ export default function QuotationBuilder() {
 
         {/* Scrollable Form */}
         <Box sx={{ flex: 1, overflow: "auto", p: 0 }}>
+          {/* Company Selection */}
+          <Box sx={{ p: 2, borderBottom: "1px solid #e2e8f0", bgcolor: "#f8fafc" }}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Company</InputLabel>
+              <Select value={selectedCompanyId} label="Company" onChange={(e) => setSelectedCompanyId(e.target.value)}>
+                {companies.map(c => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
+              </Select>
+            </FormControl>
+          </Box>
+
           {/* System Type */}
           <Accordion defaultExpanded disableGutters sx={{ boxShadow: "none", "&:before": { display: "none" } }}>
             <AccordionSummary expandIcon={<ExpandMore />} sx={{ bgcolor: "#f8fafc", minHeight: 44, "& .MuiAccordionSummary-content": { my: 0.5 } }}>
@@ -749,14 +764,15 @@ export default function QuotationBuilder() {
           {/* Header */}
           <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: "4px solid #eab308", pb: 3, mb: 3 }}>
             <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-              <Box component="img" src={origin ? `${origin}/logo.png` : "/logo.png"} alt="Logo" sx={{ maxHeight: 80 }} onError={(e: any) => { e.target.style.display = 'none'; }} />
+              <Box component="img" src={origin ? `${origin}${activeCompany.logo}` : activeCompany.logo} alt="Logo" sx={{ maxHeight: 80 }} onError={(e: any) => { e.target.style.display = 'none'; }} />
               <Box>
-                <Typography sx={{ fontSize: "26px", fontWeight: 900, color: "#1e3a5f", letterSpacing: "-0.5px", lineHeight: 1 }}>ARPIT SOLAR SHOP</Typography>
-                <Typography sx={{ fontSize: "10px", fontWeight: 600, color: "#64748b", mt: 0.5, letterSpacing: 1, textTransform: "uppercase" }}>{companyDetails.tagline}</Typography>
+                <Typography sx={{ fontSize: activeCompany.name.length > 25 ? "18px" : "26px", fontWeight: 900, color: "#1e3a5f", letterSpacing: "-0.5px", lineHeight: 1, textTransform: "uppercase" }}>{activeCompany.name}</Typography>
+                <Typography sx={{ fontSize: "10px", fontWeight: 600, color: "#64748b", mt: 0.5, letterSpacing: 1, textTransform: "uppercase" }}>{activeCompany.tagline}</Typography>
                 <Box sx={{ fontSize: "10px", color: "#64748b", mt: 1 }}>
-                  <Typography sx={{ color: "#1d4ed8", fontWeight: 700, mb: 0.25, fontSize: "10px" }}>GSTIN: {companyDetails.gstin}</Typography>
-                  <Typography sx={{ fontSize: "10px" }}><strong>HO:</strong> {companyDetails.headOffice}</Typography>
-                  <Typography sx={{ fontSize: "10px" }}><strong>Contact:</strong> {companyDetails.phone} | <strong>Email:</strong> {companyDetails.email}</Typography>
+                  <Typography sx={{ color: "#1d4ed8", fontWeight: 700, mb: 0.25, fontSize: "10px" }}>GSTIN: {activeCompany.gstin}{activeCompany.cin ? ` | CIN: ${activeCompany.cin}` : ''}</Typography>
+                  <Typography sx={{ fontSize: "10px" }}><strong>HO:</strong> {activeCompany.headOffice}</Typography>
+                  {activeCompany.warehouse && <Typography sx={{ fontSize: "10px" }}><strong>WH:</strong> {activeCompany.warehouse}</Typography>}
+                  <Typography sx={{ fontSize: "10px" }}><strong>Contact:</strong> {activeCompany.phone}{activeCompany.email ? ` | Email: ${activeCompany.email}` : ''}</Typography>
                 </Box>
               </Box>
             </Box>
@@ -832,12 +848,12 @@ export default function QuotationBuilder() {
               )}
               <Box sx={{ bgcolor: "#eff6ff", border: "1px solid #bfdbfe", p: 2, borderRadius: 2, fontSize: "10px" }}>
                 <Typography sx={{ fontWeight: 900, color: "#1e3a5f", textTransform: "uppercase", mb: 1, borderBottom: "1px solid #bfdbfe", pb: 0.5 }}>Bank Details</Typography>
-                <p style={{ margin: "4px 0" }}><strong>A/c Name:</strong> {companyDetails.bank.accountName}</p>
-                <p style={{ margin: "4px 0" }}><strong>A/c No:</strong> {companyDetails.bank.accountNumber} | <strong>IFSC:</strong> {companyDetails.bank.ifsc}</p>
-                <p style={{ margin: "4px 0" }}><strong>Bank:</strong> {companyDetails.bank.name}, {companyDetails.bank.branch}</p>
+                <p style={{ margin: "4px 0" }}><strong>A/c Name:</strong> {activeCompany.bank.accountName}</p>
+                {activeCompany.bank.accountNumber && <p style={{ margin: "4px 0" }}><strong>A/c No:</strong> {activeCompany.bank.accountNumber} | <strong>IFSC:</strong> {activeCompany.bank.ifsc}</p>}
+                {activeCompany.bank.name && <p style={{ margin: "4px 0" }}><strong>Bank:</strong> {activeCompany.bank.name}{activeCompany.bank.branch ? `, ${activeCompany.bank.branch}` : ''}</p>}
                 <Box sx={{ mt: 1.5, pt: 1, borderTop: "1px dashed #cbd5e1", textAlign: "center" }}>
                   <Typography sx={{ fontWeight: 700, color: "#1e3a5f", fontSize: "10px", mb: 0.5 }}>Scan to Pay</Typography>
-                  <a href={`upi://pay?pa=${companyDetails.bank.upiId}&pn=${encodeURIComponent(companyDetails.name)}&am=${calculations.totalAmount}&cu=INR`} style={{ textDecoration: "none" }}>
+                  <a href={`upi://pay?pa=${activeCompany.bank.upiId}&pn=${encodeURIComponent(activeCompany.name)}&am=${calculations.totalAmount}&cu=INR`} style={{ textDecoration: "none" }}>
                     <Box component="img" src={origin ? `${origin}/payment.png` : "/payment.png"} alt="Payment QR" sx={{ width: 100, height: 100, objectFit: "contain", mixBlendMode: "multiply", mx: "auto", display: "block", cursor: "pointer" }} onError={(e: any) => e.target.style.display = 'none'} />
                   </a>
                   <Typography sx={{ fontSize: "8px", color: "#64748b", mt: 0.25 }}>Click or Scan with UPI App</Typography>

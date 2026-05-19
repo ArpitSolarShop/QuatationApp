@@ -4,7 +4,7 @@ import { companyDetails as defaultCompanyDetails } from './companyDetails';
 
 export const generateQuoteHtml = (data: any): string => {
   const { customerInfo, selectedProduct, calculations, components = [], terms = [], logoUrl, qrCodeUrl, upiLink } = data;
-  const company = defaultCompanyDetails;
+  const company = data.companyDetails || defaultCompanyDetails;
 
   // Safe number extraction
   const n = (v: any) => (typeof v === 'number' && isFinite(v) ? v : 0);
@@ -130,7 +130,7 @@ export const generateQuoteHtml = (data: any): string => {
       <div class="logo-section">
         ${logoUrl ? `<img src="${logoUrl}" class="logo" alt="Logo" />` : ''}
         <div>
-          <div class="company-name">ARPIT SOLAR SHOP</div>
+          <div class="company-name">${company.name.toUpperCase()}</div>
           <div class="company-tagline">${company.tagline}</div>
           <div class="company-info">
             <div class="gstin">GSTIN: ${company.gstin}</div>
@@ -313,7 +313,7 @@ export const generateQuoteHtml = (data: any): string => {
         <div class="sig-label">Customer Signature</div>
       </div>
       <div class="sig-box right">
-        <div class="for-company">For Arpit Solar Shop</div>
+        <div class="for-company">For ${company.name}</div>
         ${data.signatureUrl ? `<img src="${data.signatureUrl}" style="height: 60px; object-fit: contain; margin-bottom: -10px; display: block; margin-left: auto;" alt="Signature" />` : '<div style="height: 50px;"></div>'}
         <div class="sig-line"></div>
         <div class="sig-label">Authorized Signatory</div>

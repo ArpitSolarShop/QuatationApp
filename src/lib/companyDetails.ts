@@ -1,34 +1,61 @@
 // Arpit Solar Shop - Company Details
-export const companyDetails = {
-    name: "Arpit Solar Shop",
-    tagline: "ILLUMINATING YOUR FUTURE WITH CLEAN ENERGY",
-    gstin: "09APKPM6299L1ZW",
-
-    // Addresses
-    headOffice: "Sh16/114/25-K-2, Sharvodaya Nagar, Kadipur Shivpur, Varanasi 221003",
-    registeredOffice: "1st Floor, Maurya Bhawan, Malgodam Road, Ballia 277001",
-
-    // Contact
-    phone: "+91 9005770466",
-    alternatePhone: "9044555572",
-    email: "arpitsolarshop@gmail.com",
-
-    // Bank Details
-    bank: {
-        name: "Bank of Baroda",
-        branch: "Shivpur, Varanasi",
-        accountName: "Arpit Solar Shop",
-        accountNumber: "28660200000614",
-        ifsc: "BARB0SHIVBS",
-        upiId: "9044555574@okbizaxis", // Updated UPI ID
+export const companies = [
+    {
+        id: "arpit",
+        name: "Arpit Solar Shop",
+        tagline: "ILLUMINATING YOUR FUTURE WITH CLEAN ENERGY",
+        gstin: "09APKPM6299L1ZW",
+        // Addresses
+        headOffice: "Sh16/114/25-K-2, Sharvodaya Nagar, Kadipur Shivpur, Varanasi 221003",
+        registeredOffice: "1st Floor, Maurya Bhawan, Malgodam Road, Ballia 277001",
+        // Contact
+        phone: "+91 9005770466",
+        alternatePhone: "9044555572",
+        email: "arpitsolarshop@gmail.com",
+        // Bank Details
+        bank: {
+            name: "Bank of Baroda",
+            branch: "Shivpur, Varanasi",
+            accountName: "Arpit Solar Shop",
+            accountNumber: "28660200000614",
+            ifsc: "BARB0SHIVBS",
+            upiId: "9044555574@okbizaxis",
+        },
+        // Logo
+        logo: "/logo.png",
+        // Authorized Signatory
+        authorizedSignatory: "Ratnesh Mishra",
     },
+    {
+        id: "krishnanuja",
+        name: "KRISHNANUJA RENEWABLES PRIVATE LIMITED",
+        tagline: "SOLAR EPC SERVICES",
+        gstin: "09AAMCK6259J1ZU",
+        cin: "U35105UP2026PTC244522",
+        // Addresses
+        headOffice: "SH16/114-15-K2, SHARVODAYA NAGAR, KADIPUR, SHIVPUR, VARANASI 221003",
+        warehouse: "SH15/243, BHARLAI, SHIVPUR, VARANASI 221003",
+        // Contact
+        phone: "9044555572",
+        alternatePhone: "",
+        email: "",
+        // Bank Details
+        bank: {
+            name: "",
+            branch: "",
+            accountName: "KRISHNANUJA RENEWABLES PRIVATE LIMITED",
+            accountNumber: "",
+            ifsc: "",
+            upiId: "9044555572@okbizaxis", // Optional fallback
+        },
+        // Logo
+        logo: "/krishnanuja.png",
+        // Authorized Signatory
+        authorizedSignatory: "Ratnesh Mishra",
+    }
+];
 
-    // Logo
-    logo: "/logo.png",
-
-    // Authorized Signatory
-    authorizedSignatory: "Ratnesh Mishra",
-};
+export const companyDetails = companies[0];
 
 // Default Subsidy Amounts (can be overridden per quotation)
 // For 3 KW and above
