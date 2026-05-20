@@ -36,10 +36,12 @@ export default function QuotationsAdminPage() {
     const [quotations, setQuotations] = useState<Quotation[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
+    const [startDate, setStartDate] = useState("");
+    const [endDate, setEndDate] = useState("");
 
     const fetchQuotations = async () => {
         try {
-            const res = await fetch("/api/quotations?limit=100");
+            const res = await fetch("/api/quotations?limit=1000");
             const data = await res.json();
             if (data.success) {
                 setQuotations(data.data || []);
@@ -98,12 +100,28 @@ export default function QuotationsAdminPage() {
         }
     };
 
-    const filteredQuotations = quotations.filter(
-        (q) =>
+    const filteredQuotations = quotations.filter((q) => {
+        // Search query filter (Name, Phone, Quote Number)
+        const matchesSearch =
             q.customer_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
             q.quote_number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            q.customer_phone?.includes(searchQuery)
-    );
+            q.customer_phone?.includes(searchQuery);
+
+        // Date filter
+        const qDate = new Date(q.created_at).getTime();
+        let matchesDate = true;
+        if (startDate) {
+            matchesDate = matchesDate && qDate >= new Date(startDate).getTime();
+        }
+        if (endDate) {
+            // Add 1 day to end date to include the entire day
+            const end = new Date(endDate);
+            end.setDate(end.getDate() + 1);
+            matchesDate = matchesDate && qDate <= end.getTime();
+        }
+
+        return matchesSearch && matchesDate;
+    });
 
     return (
         <Box sx={{ p: 3, bgcolor: "#f5f7fa", minHeight: "100vh" }}>
@@ -120,20 +138,38 @@ export default function QuotationsAdminPage() {
                             Quotations
                         </Typography>
                     </Box>
-                    <TextField
-                        size="small"
-                        placeholder="Search by name, phone, or quote number..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        InputProps={{
-                            startAdornment: (
-                                <InputAdornment position="start">
-                                    <Search />
-                                </InputAdornment>
-                            ),
-                        }}
-                        sx={{ width: 300 }}
-                    />
+                    <Box sx={{ display: "flex", gap: 2 }}>
+                        <TextField
+                            size="small"
+                            type="date"
+                            label="Start Date"
+                            InputLabelProps={{ shrink: true }}
+                            value={startDate}
+                            onChange={(e) => setStartDate(e.target.value)}
+                        />
+                        <TextField
+                            size="small"
+                            type="date"
+                            label="End Date"
+                            InputLabelProps={{ shrink: true }}
+                            value={endDate}
+                            onChange={(e) => setEndDate(e.target.value)}
+                        />
+                        <TextField
+                            size="small"
+                            placeholder="Search name, phone..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            InputProps={{
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <Search />
+                                    </InputAdornment>
+                                ),
+                            }}
+                            sx={{ width: 250 }}
+                        />
+                    </Box>
                 </Box>
 
                 {/* Quotations Table */}
