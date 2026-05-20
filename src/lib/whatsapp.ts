@@ -40,7 +40,21 @@ export async function sendWhatsAppMessage(phone: string, pdfUrl: string) {
     }
     console.log(`WhatsApp message sent to ${formattedPhone}`);
   } catch (error: any) {
-    console.error('Doubletick API error:', error.response ? error.response.data : error.message);
-    throw new Error('Failed to send WhatsApp message.');
+    const errorData = error.response?.data;
+    console.error('Doubletick API error:', errorData || error.message);
+    
+    // Check if the error indicates the number is not registered on WhatsApp
+    let errorMessage = 'Failed to send WhatsApp message.';
+    if (errorData) {
+      const details = JSON.stringify(errorData).toLowerCase();
+      if (details.includes('not a valid whatsapp') || details.includes('not registered') || details.includes('invalid contact')) {
+        errorMessage = `The number ${formattedPhone} is not registered on WhatsApp.`;
+      } else if (errorData.message) {
+        errorMessage = `WhatsApp Error: ${errorData.message}`;
+      } else if (errorData.error?.message) {
+        errorMessage = `WhatsApp Error: ${errorData.error.message}`;
+      }
+    }
+    throw new Error(errorMessage);
   }
 }

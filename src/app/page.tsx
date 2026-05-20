@@ -256,7 +256,7 @@ export default function QuotationBuilder() {
   const saveToDatabase = async () => {
     if (!customerName) return;
     try {
-      await fetch("/api/quotations", {
+      const response = await fetch("/api/quotations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -276,9 +276,13 @@ export default function QuotationBuilder() {
           salesperson: activeCompany.authorizedSignatory
         })
       });
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || "Failed to auto-save quotation");
+      }
       console.log("Quotation auto-saved to database");
     } catch (error) {
-      console.error("Auto-save failed", error);
+      console.error("Auto-save failed:", error);
     }
   };
 
