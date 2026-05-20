@@ -91,6 +91,7 @@ export default function QuotationsAdminPage() {
             case "accepted":
                 return "success";
             case "rejected":
+            case "Failed Delivery":
                 return "error";
             default:
                 return "default";
