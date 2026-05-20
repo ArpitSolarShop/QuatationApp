@@ -47,7 +47,6 @@ import {
   WhatsApp,
   Email,
   AddCircle,
-  Dashboard,
 } from "@mui/icons-material";
 import { useReactToPrint } from "react-to-print";
 import Link from "next/link";
@@ -462,7 +461,7 @@ export default function QuotationBuilder() {
               <Button 
                 variant="outlined" 
                 size="small" 
-                startIcon={<Dashboard fontSize="small" />} 
+                startIcon={<AdminPanelSettings fontSize="small" />} 
                 sx={{ 
                   color: "white", 
                   borderColor: "rgba(255,255,255,0.5)", 
