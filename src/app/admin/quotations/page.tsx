@@ -18,7 +18,7 @@ import {
     TextField,
     InputAdornment,
 } from "@mui/material";
-import { ArrowBack, Visibility, Delete, Search, WhatsApp, Print } from "@mui/icons-material";
+import { ArrowBack, Visibility, Delete, Search, WhatsApp } from "@mui/icons-material";
 import Link from "next/link";
 
 type Quotation = {

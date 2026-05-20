@@ -5,16 +5,10 @@ import {
   Button,
   Box,
   Grid,
-  Chip,
   Paper,
 } from '@mui/material';
 import { useState } from 'react';
-import type { Product } from '../types/quote';
 
-interface ProductSelectorProps {
-  onSelect: (product: Product) => void;
-  selectedProduct?: Product | null;
-}
 
 export const SupplierTabs = [
   {
@@ -73,7 +67,7 @@ export const SupplierTabs = [
   },
 ];
 
-export default function ProductSelector({ onSelect, selectedProduct }: ProductSelectorProps) {
+export default function ProductSelector() {
   const [activeSupplier, setActiveSupplier] = useState<string>('tata');
 
   return (

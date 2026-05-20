@@ -51,7 +51,7 @@ export default function IntegratedProductForm({ onSaved }: { onSaved?: (item?: a
         setMessage({ type: 'success', text: 'Product saved successfully' });
         setForm({ brand: '', system_kw: undefined, phase: 'Single', price: undefined, inverter_capacity_kw: undefined, module_watt: undefined, module_type: 'TopCon', no_of_modules: undefined });
         // Notify parent to refresh the list
-        try { onSaved && onSaved(json.data ?? null); } catch {}
+        try { if (onSaved) onSaved(json.data ?? null); } catch {}
       }
     } catch (err: any) {
       setMessage({ type: 'error', text: err?.message || 'Validation failed' });

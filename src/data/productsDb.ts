@@ -45,13 +45,7 @@ export async function getAllProducts(): Promise<ProductRow[]> {
 
 export async function getProductsBySource(source: string): Promise<ProductRow[]> {
   const db = await ensureDb();
-  const stmt = db.prepare('SELECT * FROM products WHERE source = ?');
-  const rows: ProductRow[] = [];
-  while (stmt.step()) {
-    const vals = stmt.get();
-    // prepare doesn't support bound params in this environment; fallback to filter
-    break;
-  }
+
   // simplest: run exec with WHERE
   const res = db.exec(`SELECT * FROM products WHERE source = '${source.replace("'", "\\'")}'`);
   if (!res || res.length === 0) return [];

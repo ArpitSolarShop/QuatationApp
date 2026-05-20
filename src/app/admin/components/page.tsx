@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import {
     Box,
     Typography,
-    Paper,
     Button,
     Card,
     CardContent,
@@ -21,10 +20,6 @@ import {
     DialogActions,
     TextField,
     Grid,
-    FormControl,
-    InputLabel,
-    Select,
-    MenuItem,
     Chip,
     CircularProgress,
     Snackbar,
@@ -32,7 +27,7 @@ import {
     Switch,
     FormControlLabel,
 } from "@mui/material";
-import { Add, Edit, Delete, ArrowBack, DragIndicator } from "@mui/icons-material";
+import { Add, Edit, Delete, ArrowBack } from "@mui/icons-material";
 import Link from "next/link";
 import { defaultComponents } from "@/lib/companyDetails";
 

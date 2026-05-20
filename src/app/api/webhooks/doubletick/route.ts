@@ -1,11 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
 // This endpoint receives Webhooks from DoubleTick
 export async function POST(request: Request) {
   try {
@@ -29,16 +24,25 @@ export async function POST(request: Request) {
             recipient = recipient.substring(2);
         }
 
-        // Update the database
-        const { error } = await supabase
-            .from('quotations')
-            .update({ status: 'Failed Delivery' })
-            .eq('customer_phone', recipient);
-            
-        if (error) {
-            console.error("Failed to update Supabase status:", error);
+        // Initialize Supabase client
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+        
+        if (supabaseUrl && supabaseKey) {
+          const supabase = createClient(supabaseUrl, supabaseKey);
+          // Update the database
+          const { error } = await supabase
+              .from('quotations')
+              .update({ status: 'Failed Delivery' })
+              .eq('customer_phone', recipient);
+              
+          if (error) {
+              console.error("Failed to update Supabase status:", error);
+          } else {
+              console.log(`✅ Updated quotation status to 'Failed Delivery' for phone ${recipient}`);
+          }
         } else {
-            console.log(`✅ Updated quotation status to 'Failed Delivery' for phone ${recipient}`);
+          console.error("Missing Supabase environment variables");
         }
       }
     }

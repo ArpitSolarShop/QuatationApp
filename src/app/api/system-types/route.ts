@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerSupabase } from '@/lib/supabase';
-import { defaultTerms, defaultComponents } from '@/lib/companyDetails';
+import { defaultTerms } from '@/lib/companyDetails';
 
 // GET - List all system types
 export async function GET() {
@@ -14,7 +14,7 @@ export async function GET() {
         if (error) throw error;
 
         return NextResponse.json({ success: true, data });
-    } catch (error: any) {
+    } catch {
         // If table doesn't exist, return defaults
         const defaultTypes = [
             { id: 'on-grid', name: 'On-grid', description: 'Grid-tied solar systems connected to utility grid' },

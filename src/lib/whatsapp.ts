@@ -1,6 +1,7 @@
 import axios from 'axios';
 
 export async function sendWhatsAppMessage(phone: string, pdfUrl: string) {
+  let formattedPhone = phone;
   try {
     const apiKey = process.env.DOUBLETICK_API_KEY;
     const senderPhone = process.env.DOUBLETICK_SENDER_PHONE;
@@ -15,7 +16,7 @@ export async function sendWhatsAppMessage(phone: string, pdfUrl: string) {
       cleanedPhone = cleanedPhone.slice(1);
     }
     if (cleanedPhone.length !== 10) throw new Error(`Invalid phone number: ${phone}`);
-    const formattedPhone = `+91${cleanedPhone}`;
+    formattedPhone = `+91${cleanedPhone}`;
     const payload = {
       messages: [{ to: formattedPhone, from: senderPhone, content: { templateName: 'quotation_document', language: 'en', templateData: { header: { type: 'DOCUMENT' as const, mediaUrl: pdfUrl, filename: pdfUrl.split('/').pop() }, body: { placeholders: [] } } } }]
     };
