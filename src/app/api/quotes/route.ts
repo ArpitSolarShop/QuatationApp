@@ -69,10 +69,10 @@ export async function POST(request: Request) {
     if (error) throw error;
 
     return NextResponse.json({ success: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Save quote error:', error);
     return NextResponse.json(
-      { success: false, message: error?.message || 'Failed to save quote' },
+      { success: false, message: (error as Error)?.message || 'Failed to save quote' },
       { status: 500 }
     );
   }

@@ -19,8 +19,8 @@ export async function GET(request: Request, context: RouteContext) {
         if (error) throw error;
 
         return NextResponse.json({ success: true, data });
-    } catch (error: any) {
-        return NextResponse.json({ success: false, message: error.message }, { status: 500 });
+    } catch (error) {
+        return NextResponse.json({ success: false, message: (error as any).message }, { status: 500 });
     }
 }
 
@@ -93,8 +93,8 @@ export async function PUT(request: Request, context: RouteContext) {
         if (error) throw error;
 
         return NextResponse.json({ success: true, data });
-    } catch (error: any) {
-        return NextResponse.json({ success: false, message: error.message }, { status: 500 });
+    } catch (error) {
+        return NextResponse.json({ success: false, message: (error as any).message }, { status: 500 });
     }
 }
 
@@ -112,7 +112,7 @@ export async function DELETE(request: Request, context: RouteContext) {
         if (error) throw error;
 
         return NextResponse.json({ success: true });
-    } catch (error: any) {
-        return NextResponse.json({ success: false, message: error.message }, { status: 500 });
+    } catch (error) {
+        return NextResponse.json({ success: false, message: (error as any).message }, { status: 500 });
     }
 }

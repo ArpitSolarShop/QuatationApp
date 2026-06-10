@@ -45,6 +45,7 @@ import {
   WhatsApp,
   Email,
   AddCircle,
+  CleaningServices,
 } from "@mui/icons-material";
 import { useReactToPrint } from "react-to-print";
 import Link from "next/link";
@@ -57,7 +58,12 @@ import {
   getSubsidyForCapacity,
   calculateSavings,
   generateQuoteNumber,
+  defaultServiceItems,
+  defaultServiceTerms,
+  serviceGstRate,
+  generateServiceRefNumber,
 } from "@/lib/companyDetails";
+import type { ServiceItem } from "@/lib/companyDetails";
 import type { QuotationComponent } from "@/types";
 
 // System type configuration
@@ -66,6 +72,7 @@ const systemTypes = [
   { id: "Off-grid", name: "Off-grid", icon: <BatteryChargingFull fontSize="small" />, color: "#FF9800" },
   { id: "Hybrid", name: "Hybrid", icon: <SettingsInputComponent fontSize="small" />, color: "#2196F3" },
   { id: "VFD/Drive", name: "VFD/Drive", icon: <Water fontSize="small" />, color: "#9C27B0" },
+  { id: "Service", name: "Service/O&M", icon: <CleaningServices fontSize="small" />, color: "#0d47a1" },
 ];
 
 // Panel types
@@ -155,6 +162,39 @@ export default function QuotationBuilder() {
   const [editingIndex, setEditingIndex] = useState<number>(-1);
   const [addComponentDialog, setAddComponentDialog] = useState(false);
   const [newComponent, setNewComponent] = useState<QuotationComponent>({ name: "", description: "", quantity: "1 Nos", make: "Standard", sort_order: 0 });
+
+  // Service Mode State
+  const isServiceMode = selectedSystemType === "Service";
+  const [serviceItems, setServiceItems] = useState<ServiceItem[]>(JSON.parse(JSON.stringify(defaultServiceItems)));
+  const [serviceTerms, setServiceTerms] = useState<string[]>([...defaultServiceTerms]);
+  const [serviceGst, setServiceGst] = useState(serviceGstRate);
+  const [serviceProposalTitle, setServiceProposalTitle] = useState("PROPOSAL FOR O&M SERVICES");
+  const [editTermIdx, setEditTermIdx] = useState(-1);
+  const [editTermText, setEditTermText] = useState("");
+
+  const serviceSubtotal = useMemo(() => serviceItems.reduce((s, i) => s + i.amount, 0), [serviceItems]);
+  const serviceGstAmount = useMemo(() => +(serviceSubtotal * serviceGst / 100).toFixed(2), [serviceSubtotal, serviceGst]);
+  const serviceGrandTotal = useMemo(() => +(serviceSubtotal + serviceGstAmount).toFixed(2), [serviceSubtotal, serviceGstAmount]);
+  const serviceRefNumber = useMemo(() => generateServiceRefNumber(activeCompany.id === "krishnanuja" ? "KRPL" : "ASS"), [activeCompany.id]);
+
+  const updateServiceItem = (idx: number, field: keyof ServiceItem, val: string | number) => {
+    const updated = [...serviceItems];
+    (updated[idx] as any)[field] = val;
+    if (field === "rate" || field === "qty" || field === "unit") {
+      const qty = parseFloat(updated[idx].qty) || 0;
+      const rate = updated[idx].rate || 0;
+      if (updated[idx].unit === "Month") {
+        // Rate is per month, amount = qty * rate * 12 (yearly total)
+        updated[idx].amount = qty * rate * 12;
+        updated[idx].monthlyRate = rate;
+      } else {
+        // Rate is per year, amount = qty * rate
+        updated[idx].amount = qty * rate;
+        updated[idx].monthlyRate = +(updated[idx].amount / 12).toFixed(2);
+      }
+    }
+    setServiceItems(updated);
+  };
 
   const printRef = useRef<HTMLDivElement>(null);
 
@@ -355,13 +395,13 @@ export default function QuotationBuilder() {
 
       if (response.ok) {
         saveToDatabase(); // Auto-save
-        setNotification({ open: true, message: "Quotation PDF sent to WhatsApp successfully!", severity: "success" });
+        setNotification({ open: true, message: "Quotation PDF queued for WhatsApp delivery. It may take a moment to reach the customer.", severity: "success" });
       } else {
         throw new Error(result.message || "Failed to send WhatsApp");
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error("WhatsApp error:", error);
-      setNotification({ open: true, message: error.message, severity: "error" });
+      setNotification({ open: true, message: (error as any).message, severity: "error" });
     }
     finally { setLoading(false); }
   };
@@ -391,7 +431,7 @@ export default function QuotationBuilder() {
           setNotification({ open: true, message: "Email sent successfully!", severity: "success" });
         }
       } else throw new Error(result.message || "Failed to send email");
-    } catch (error: any) { setNotification({ open: true, message: error.message, severity: "error" }); }
+    } catch (error) { setNotification({ open: true, message: (error as any).message, severity: "error" }); }
     finally { setLoading(false); }
   };
 
@@ -455,23 +495,43 @@ export default function QuotationBuilder() {
               <SolarPower sx={{ mr: 1, verticalAlign: "middle", fontSize: 20 }} />
               Quotation Builder
             </Typography>
-            <Link href="/admin" style={{ textDecoration: 'none' }}>
-              <Button 
-                variant="outlined" 
-                size="small" 
-                startIcon={<AdminPanelSettings fontSize="small" />} 
-                sx={{ 
-                  color: "white", 
-                  borderColor: "rgba(255,255,255,0.5)", 
-                  "&:hover": { borderColor: "white", bgcolor: "rgba(255,255,255,0.1)" },
-                  textTransform: "none",
-                  fontWeight: "bold",
-                  px: 2
-                }}
-              >
-                Admin Dashboard
-              </Button>
-            </Link>
+            <Box sx={{ display: "flex", gap: 1 }}>
+              <Link href="/service" style={{ textDecoration: 'none' }}>
+                <Button 
+                  variant="outlined" 
+                  size="small" 
+                  sx={{ 
+                    color: "white", 
+                    borderColor: "rgba(255,255,255,0.5)", 
+                    "&:hover": { borderColor: "white", bgcolor: "rgba(255,255,255,0.1)" },
+                    textTransform: "none",
+                    fontWeight: "bold",
+                    px: 1.5,
+                    fontSize: 11
+                  }}
+                >
+                  Service
+                </Button>
+              </Link>
+              <Link href="/admin" style={{ textDecoration: 'none' }}>
+                <Button 
+                  variant="outlined" 
+                  size="small" 
+                  startIcon={<AdminPanelSettings fontSize="small" />} 
+                  sx={{ 
+                    color: "white", 
+                    borderColor: "rgba(255,255,255,0.5)", 
+                    "&:hover": { borderColor: "white", bgcolor: "rgba(255,255,255,0.1)" },
+                    textTransform: "none",
+                    fontWeight: "bold",
+                    px: 1.5,
+                    fontSize: 11
+                  }}
+                >
+                  Admin
+                </Button>
+              </Link>
+            </Box>
           </Box>
         </Box>
 
@@ -509,6 +569,99 @@ export default function QuotationBuilder() {
             </AccordionDetails>
           </Accordion>
 
+          {/* ===== SERVICE MODE FORM ===== */}
+          {isServiceMode && (<>
+            {/* Client Details */}
+            <Accordion defaultExpanded disableGutters sx={{ boxShadow: "none", "&:before": { display: "none" } }}>
+              <AccordionSummary expandIcon={<ExpandMore />} sx={{ bgcolor: "#f8fafc", minHeight: 44, "& .MuiAccordionSummary-content": { my: 0.5 } }}>
+                <Person sx={{ mr: 1, color: "#0d47a1", fontSize: 18 }} />
+                <Typography variant="subtitle2" fontWeight="bold" color="#0d47a1">Client Details</Typography>
+              </AccordionSummary>
+              <AccordionDetails sx={{ p: 1.5, display: "flex", flexDirection: "column", gap: 1.5 }}>
+                <TextField fullWidth label="Client / Company Name" value={customerName} onChange={(e) => setCustomerName(e.target.value)} required size="small" />
+                <TextField fullWidth label="Phone" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} size="small" />
+                <TextField fullWidth label="Address" value={customerAddress} onChange={(e) => setCustomerAddress(e.target.value)} size="small" multiline rows={2} />
+                <TextField fullWidth label="Proposal Title" value={serviceProposalTitle} onChange={(e) => setServiceProposalTitle(e.target.value)} size="small" />
+              </AccordionDetails>
+            </Accordion>
+
+            {/* Service Items */}
+            <Accordion defaultExpanded disableGutters sx={{ boxShadow: "none", "&:before": { display: "none" } }}>
+              <AccordionSummary expandIcon={<ExpandMore />} sx={{ bgcolor: "#f8fafc", minHeight: 44, "& .MuiAccordionSummary-content": { my: 0.5 } }}>
+                <ListAlt sx={{ mr: 1, color: "#0d47a1", fontSize: 18 }} />
+                <Typography variant="subtitle2" fontWeight="bold" color="#0d47a1">Service Items ({serviceItems.length})</Typography>
+              </AccordionSummary>
+              <AccordionDetails sx={{ p: 1 }}>
+                {serviceItems.map((item, i) => (
+                  <Box key={i} sx={{ p: 1, mb: 1, bgcolor: i % 2 === 0 ? "#f8fafc" : "white", borderRadius: 1, border: "1px solid #e2e8f0" }}>
+                    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 0.5 }}>
+                      <Typography variant="caption" fontWeight="bold">Item {i + 1}</Typography>
+                      <IconButton size="small" color="error" onClick={() => setServiceItems(serviceItems.filter((_, idx) => idx !== i).map((it, idx) => ({ ...it, sno: idx + 1 })))}><Delete sx={{ fontSize: 16 }} /></IconButton>
+                    </Box>
+                    <TextField fullWidth label="Description" value={item.description} onChange={(e) => updateServiceItem(i, "description", e.target.value)} size="small" sx={{ mb: 1 }} multiline />
+                    <Box sx={{ display: "flex", gap: 1, mb: 1 }}>
+                      <TextField label="HSN/SAC" value={item.hsnSac} onChange={(e) => updateServiceItem(i, "hsnSac", e.target.value)} size="small" sx={{ flex: 1 }} />
+                      <TextField label="Qty" value={item.qty} onChange={(e) => updateServiceItem(i, "qty", e.target.value)} size="small" sx={{ width: 60 }} />
+                      <FormControl size="small" sx={{ width: 90 }}>
+                        <InputLabel>Unit</InputLabel>
+                        <Select value={item.unit} label="Unit" onChange={(e) => updateServiceItem(i, "unit", e.target.value)}>
+                          <MenuItem value="Year">Year</MenuItem>
+                          <MenuItem value="Month">Month</MenuItem>
+                        </Select>
+                      </FormControl>
+                    </Box>
+                    <TextField fullWidth label={item.unit === "Month" ? "Monthly Rate (₹)" : "Yearly Rate (₹)"} type="number" value={item.rate} onChange={(e) => updateServiceItem(i, "rate", parseFloat(e.target.value) || 0)} InputProps={{ startAdornment: <InputAdornment position="start">₹</InputAdornment> }} size="small" />
+                    {item.unit === "Month" ? (
+                      <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block" }}>Yearly Total: ₹{formatCurrency(item.amount)}</Typography>
+                    ) : item.monthlyRate ? (
+                      <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block" }}>Monthly: ₹{formatCurrency(item.monthlyRate)}</Typography>
+                    ) : null}
+                  </Box>
+                ))}
+                <Button fullWidth variant="outlined" size="small" startIcon={<Add />} onClick={() => setServiceItems([...serviceItems, { sno: serviceItems.length + 1, description: "", hsnSac: "998717", qty: "1", unit: "Year", rate: 0, amount: 0, monthlyRate: 0 }])} sx={{ mt: 1 }}>Add Service Item</Button>
+              </AccordionDetails>
+            </Accordion>
+
+            {/* Service Pricing */}
+            <Accordion defaultExpanded disableGutters sx={{ boxShadow: "none", "&:before": { display: "none" } }}>
+              <AccordionSummary expandIcon={<ExpandMore />} sx={{ bgcolor: "#f8fafc", minHeight: 44, "& .MuiAccordionSummary-content": { my: 0.5 } }}>
+                <AttachMoney sx={{ mr: 1, color: "#0d47a1", fontSize: 18 }} />
+                <Typography variant="subtitle2" fontWeight="bold" color="#0d47a1">Pricing</Typography>
+              </AccordionSummary>
+              <AccordionDetails sx={{ p: 1.5, display: "flex", flexDirection: "column", gap: 1.5 }}>
+                <TextField label="GST Rate" type="number" value={serviceGst} onChange={(e) => setServiceGst(parseFloat(e.target.value) || 0)} InputProps={{ endAdornment: <InputAdornment position="end">%</InputAdornment> }} size="small" />
+                <Box sx={{ p: 1.5, bgcolor: "#e3f2fd", borderRadius: 1, textAlign: "center" }}>
+                  <Typography variant="caption" sx={{ color: "#0d47a1", textTransform: "uppercase", fontWeight: 700 }}>Grand Total</Typography>
+                  <Typography variant="h5" fontWeight="900" color="#1b5e20">₹ {formatCurrency(serviceGrandTotal)}</Typography>
+                </Box>
+              </AccordionDetails>
+            </Accordion>
+
+            {/* Service Terms */}
+            <Accordion disableGutters sx={{ boxShadow: "none", "&:before": { display: "none" } }}>
+              <AccordionSummary expandIcon={<ExpandMore />} sx={{ bgcolor: "#f8fafc", minHeight: 44, "& .MuiAccordionSummary-content": { my: 0.5 } }}>
+                <ListAlt sx={{ mr: 1, color: "#0d47a1", fontSize: 18 }} />
+                <Typography variant="subtitle2" fontWeight="bold" color="#0d47a1">Terms ({serviceTerms.length})</Typography>
+              </AccordionSummary>
+              <AccordionDetails sx={{ p: 1 }}>
+                {serviceTerms.map((t, i) => (
+                  <Box key={i} sx={{ display: "flex", alignItems: "flex-start", gap: 0.5, p: 0.5, bgcolor: i % 2 === 0 ? "#f8fafc" : "white", borderRadius: 1, mb: 0.5 }}>
+                    {editTermIdx === i ? (
+                      <TextField fullWidth value={editTermText} onChange={(e) => setEditTermText(e.target.value)} size="small" multiline onBlur={() => { const u = [...serviceTerms]; u[i] = editTermText; setServiceTerms(u); setEditTermIdx(-1); }} autoFocus />
+                    ) : (
+                      <Typography variant="caption" sx={{ flex: 1, cursor: "pointer" }} onClick={() => { setEditTermIdx(i); setEditTermText(t); }}>{i + 1}. {t.substring(0, 80)}...</Typography>
+                    )}
+                    <IconButton size="small" onClick={() => { setEditTermIdx(i); setEditTermText(t); }}><Edit sx={{ fontSize: 14 }} /></IconButton>
+                    <IconButton size="small" color="error" onClick={() => setServiceTerms(serviceTerms.filter((_, idx) => idx !== i))}><Delete sx={{ fontSize: 14 }} /></IconButton>
+                  </Box>
+                ))}
+                <Button fullWidth variant="outlined" size="small" startIcon={<Add />} onClick={() => setServiceTerms([...serviceTerms, "New term"])} sx={{ mt: 1 }}>Add Term</Button>
+              </AccordionDetails>
+            </Accordion>
+          </>)}
+
+          {/* ===== SOLAR MODE FORM ===== */}
+          {!isServiceMode && (<>
           {/* Customer Details */}
           <Accordion defaultExpanded disableGutters sx={{ boxShadow: "none", "&:before": { display: "none" } }}>
             <AccordionSummary expandIcon={<ExpandMore />} sx={{ bgcolor: "#f8fafc", minHeight: 44, "& .MuiAccordionSummary-content": { my: 0.5 } }}>
@@ -751,6 +904,7 @@ export default function QuotationBuilder() {
               <Button fullWidth variant="outlined" size="small" startIcon={<Add />} onClick={() => setAddComponentDialog(true)} sx={{ mt: 1 }}>Add Component</Button>
             </AccordionDetails>
           </Accordion>
+          </>)}
         </Box>
 
         {/* Action Buttons */}
@@ -777,6 +931,131 @@ export default function QuotationBuilder() {
       {/* CENTER PREVIEW */}
       <Box className="print-wrapper" sx={{ flex: 1, width: "100%", overflow: "auto", p: { xs: 2, md: 3 }, display: "flex", justifyContent: "center", bgcolor: "#e2e8f0" }}>
         <Box ref={printRef} className="print-page" sx={{ width: "210mm", minHeight: "297mm", p: "15mm", bgcolor: "white", boxShadow: "0 4px 20px rgba(0,0,0,0.15)", fontFamily: "'Segoe UI', sans-serif", fontSize: "11px", color: "#1e293b", boxSizing: "border-box" }}>
+
+          {/* ===== SERVICE PREVIEW ===== */}
+          {isServiceMode ? (<>
+            {/* Service Header */}
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: "4px solid #0d47a1", pb: 3, mb: 3 }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                <Box component="img" src={origin ? `${origin}${activeCompany.logo}` : activeCompany.logo} alt="Logo" sx={{ maxHeight: 80 }} onError={(e: any) => { e.target.style.display = 'none'; }} />
+                <Box>
+                  <Typography sx={{ fontSize: activeCompany.name.length > 25 ? "16px" : "24px", fontWeight: 900, color: "#0d47a1", letterSpacing: "-0.5px", lineHeight: 1.1, textTransform: "uppercase" }}>{activeCompany.name}</Typography>
+                  <Typography sx={{ fontSize: "10px", fontWeight: 600, color: "#64748b", mt: 0.5, letterSpacing: 1, textTransform: "uppercase" }}>{activeCompany.tagline}</Typography>
+                  <Box sx={{ fontSize: "9px", color: "#64748b", mt: 1 }}>
+                    <Typography sx={{ color: "#0d47a1", fontWeight: 700, mb: 0.25, fontSize: "9px" }}>GSTIN: {activeCompany.gstin}{(activeCompany as any).cin ? ` | CIN: ${(activeCompany as any).cin}` : ''}</Typography>
+                    <Typography sx={{ fontSize: "9px" }}><strong>Office:</strong> {activeCompany.headOffice}</Typography>
+                    {(activeCompany as any).warehouse && <Typography sx={{ fontSize: "9px" }}><strong>Warehouse:</strong> {(activeCompany as any).warehouse}</Typography>}
+                    <Typography sx={{ fontSize: "9px" }}>📞 +91 {activeCompany.phone}</Typography>
+                  </Box>
+                </Box>
+              </Box>
+              <Box sx={{ textAlign: "right" }}>
+                <Box sx={{ bgcolor: "#0d47a1", color: "white", px: 2, py: 0.75, fontSize: "11px", fontWeight: 900, borderRadius: 1, mb: 1, textTransform: "uppercase", letterSpacing: 1 }}>Service Proposal</Box>
+                <Typography sx={{ fontSize: "11px", color: "#64748b", fontWeight: 700 }}>Date: {currentDate}</Typography>
+                <Typography sx={{ fontSize: "10px", color: "#94a3b8" }}>Reference: {serviceRefNumber}</Typography>
+              </Box>
+            </Box>
+
+            {/* Proposal Title */}
+            <Box sx={{ textAlign: "center", mb: 3, py: 1.5, bgcolor: "#e3f2fd", borderRadius: 2, border: "1px solid #90caf9" }}>
+              <Typography sx={{ fontSize: "16px", fontWeight: 900, color: "#0d47a1", textTransform: "uppercase", letterSpacing: 2 }}>{serviceProposalTitle}</Typography>
+            </Box>
+
+            {/* Prepared For */}
+            <Box className="avoid-break" sx={{ mb: 3, bgcolor: "#f8fafc", p: 2, borderRadius: 2, border: "1px solid #e2e8f0" }}>
+              <Typography sx={{ fontWeight: 700, color: "#0d47a1", mb: 1, textTransform: "uppercase", fontSize: "10px", letterSpacing: 1, borderBottom: "1px solid #e2e8f0", pb: 0.5 }}>Prepared For</Typography>
+              <Typography sx={{ fontWeight: 900, color: "#1e40af", fontSize: "16px" }}>{customerName || "________________"}</Typography>
+              {customerAddress && <Typography sx={{ color: "#475569", fontWeight: 500, fontSize: "11px", fontStyle: "italic", mt: 0.5 }}>{customerAddress}</Typography>}
+              {customerPhone && <Typography sx={{ color: "#475569", fontWeight: 500, fontSize: "11px" }}>📞 {customerPhone}</Typography>}
+            </Box>
+
+            {/* Commercial Details Table */}
+            <Box sx={{ mb: 1 }}>
+              <Typography sx={{ fontWeight: 900, color: "#0d47a1", textTransform: "uppercase", fontSize: "11px", letterSpacing: 1, mb: 1, borderBottom: "2px solid #0d47a1", pb: 0.5, display: "inline-block" }}>Commercial Details</Typography>
+            </Box>
+            <Box sx={{ overflow: "hidden", borderRadius: 2, border: "1px solid #e2e8f0", mb: 3 }}>
+              <table style={{ width: "100%", fontSize: "11px", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr style={{ backgroundColor: "#e3f2fd", color: "#0d47a1", borderBottom: "2px solid #90caf9" }}>
+                    <th style={{ padding: "10px 8px", textAlign: "center", width: "40px" }}>S.No.</th>
+                    <th style={{ padding: "10px 8px", textAlign: "left" }}>Description</th>
+                    <th style={{ padding: "10px 8px", textAlign: "center", width: "80px" }}>HSN/SAC</th>
+                    <th style={{ padding: "10px 8px", textAlign: "center", width: "40px" }}>Qty</th>
+                    <th style={{ padding: "10px 8px", textAlign: "center", width: "60px" }}>Unit</th>
+                    <th style={{ padding: "10px 8px", textAlign: "right", width: "110px" }}>Rate (INR)</th>
+                    <th style={{ padding: "10px 8px", textAlign: "right", width: "110px" }}>Amount (INR)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {serviceItems.map((item, i) => (
+                    <tr key={i} style={{ backgroundColor: i % 2 === 1 ? "#f8fafc" : "white", borderBottom: "1px solid #e2e8f0" }}>
+                      <td style={{ padding: "10px 8px", textAlign: "center", fontWeight: 700 }}>{item.sno}</td>
+                      <td style={{ padding: "10px 8px", fontWeight: 600 }}>
+                        {item.description}
+                        {item.unit === "Month" ? (
+                          <><br /><span style={{ fontSize: "9px", color: "#64748b" }}>(Rate: ₹{formatCurrency(item.rate)}/Month)</span></>
+                        ) : item.monthlyRate ? (
+                          <><br /><span style={{ fontSize: "9px", color: "#64748b" }}>(Monthly Rate: ₹{formatCurrency(item.monthlyRate)})</span></>
+                        ) : null}
+                      </td>
+                      <td style={{ padding: "10px 8px", textAlign: "center", color: "#64748b" }}>{item.hsnSac}</td>
+                      <td style={{ padding: "10px 8px", textAlign: "center", fontWeight: 700 }}>{item.qty}</td>
+                      <td style={{ padding: "10px 8px", textAlign: "center" }}>{item.unit === "Month" ? "Per Month" : item.unit}</td>
+                      <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 600 }}>{item.unit === "Month" ? formatCurrency(item.rate) : formatCurrency(item.rate)}</td>
+                      <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 700 }}>{formatCurrency(item.amount)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </Box>
+
+            {/* Totals */}
+            <Box className="avoid-break" sx={{ display: "flex", justifyContent: "flex-end", mb: 3 }}>
+              <Box sx={{ width: "50%", border: "1px solid #e2e8f0", borderRadius: 2, overflow: "hidden" }}>
+                <Box sx={{ display: "flex", justifyContent: "space-between", p: "8px 12px", borderBottom: "1px solid #e2e8f0", bgcolor: "#f8fafc" }}>
+                  <Typography sx={{ fontSize: "11px", fontWeight: 600 }}>Sub Total:</Typography>
+                  <Typography sx={{ fontSize: "11px", fontWeight: 700 }}>₹ {formatCurrency(serviceSubtotal)}</Typography>
+                </Box>
+                <Box sx={{ display: "flex", justifyContent: "space-between", p: "8px 12px", borderBottom: "1px solid #e2e8f0" }}>
+                  <Typography sx={{ fontSize: "11px", fontWeight: 600 }}>{serviceGst}% GST:</Typography>
+                  <Typography sx={{ fontSize: "11px", fontWeight: 700 }}>₹ {formatCurrency(serviceGstAmount)}</Typography>
+                </Box>
+                <Box sx={{ display: "flex", justifyContent: "space-between", p: "10px 12px", bgcolor: "#0d47a1" }}>
+                  <Typography sx={{ fontSize: "13px", fontWeight: 900, color: "white" }}>Grand Total:</Typography>
+                  <Typography sx={{ fontSize: "13px", fontWeight: 900, color: "white" }}>₹ {formatCurrency(serviceGrandTotal)}</Typography>
+                </Box>
+              </Box>
+            </Box>
+
+            {/* Service Terms */}
+            <Box className="avoid-break" sx={{ fontSize: "10px", borderTop: "1px solid #e2e8f0", pt: 2, mb: 3 }}>
+              <Typography sx={{ fontWeight: 900, color: "#0d47a1", textTransform: "uppercase", mb: 1, letterSpacing: 1, fontSize: "11px" }}>Terms & Conditions</Typography>
+              <Box component="ol" sx={{ pl: 2.5, color: "#475569", m: 0, "& li": { mb: 0.75, lineHeight: 1.5 } }}>
+                {serviceTerms.map((term, i) => (
+                  <li key={i} dangerouslySetInnerHTML={{ __html: term.replace(/^([^:]+):/, '<strong>$1:</strong>') }} />
+                ))}
+              </Box>
+            </Box>
+
+            {/* Service Signatures */}
+            <Box sx={{ mt: 4, display: "flex", justifyContent: "space-between", alignItems: "flex-end", px: 2 }}>
+              <Box sx={{ textAlign: "center" }}>
+                <Typography sx={{ fontSize: "10px", fontWeight: 700, color: "#1e3a5f", mb: 0.5 }}>Client Acceptance</Typography>
+                <Box sx={{ width: 160, height: 60 }} />
+                <Box sx={{ width: 160, height: 1, bgcolor: "#cbd5e1", mb: 0.5, mx: "auto" }} />
+                <Typography sx={{ fontSize: "9px", color: "#94a3b8", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>Authorized Signatory</Typography>
+                <Typography sx={{ fontSize: "9px", color: "#475569", fontWeight: 600 }}>{customerName || "Client"}</Typography>
+              </Box>
+              <Box sx={{ textAlign: "right" }}>
+                <Typography sx={{ fontSize: "14px", fontWeight: 900, color: "#0d47a1", mb: 0, textDecoration: "underline", textDecorationColor: "#0d47a1", textUnderlineOffset: 4 }}>For {activeCompany.name}</Typography>
+                <Box component="img" src={origin ? `${origin}${(activeCompany as any).signature || '/signature.png'}` : ((activeCompany as any).signature || '/signature.png')} alt="Signature" sx={{ width: 200, height: 90, objectFit: "contain", display: "block", ml: "auto", my: 1 }} onError={(e: any) => e.target.style.display = 'none'} />
+                <Box sx={{ width: 192, height: 1, bgcolor: "#cbd5e1", mb: 0.5, ml: "auto" }} />
+                <Typography sx={{ fontSize: "9px", color: "#94a3b8", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>Authorized Signatory</Typography>
+              </Box>
+            </Box>
+          </>) : (<>
+
+          {/* ===== SOLAR PREVIEW ===== */}
           {/* Header */}
           <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: "4px solid #eab308", pb: 3, mb: 3 }}>
             <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
@@ -785,9 +1064,9 @@ export default function QuotationBuilder() {
                 <Typography sx={{ fontSize: activeCompany.name.length > 25 ? "18px" : "26px", fontWeight: 900, color: "#1e3a5f", letterSpacing: "-0.5px", lineHeight: 1, textTransform: "uppercase" }}>{activeCompany.name}</Typography>
                 <Typography sx={{ fontSize: "10px", fontWeight: 600, color: "#64748b", mt: 0.5, letterSpacing: 1, textTransform: "uppercase" }}>{activeCompany.tagline}</Typography>
                 <Box sx={{ fontSize: "10px", color: "#64748b", mt: 1 }}>
-                  <Typography sx={{ color: "#1d4ed8", fontWeight: 700, mb: 0.25, fontSize: "10px" }}>GSTIN: {activeCompany.gstin}{activeCompany.cin ? ` | CIN: ${activeCompany.cin}` : ''}</Typography>
+                  <Typography sx={{ color: "#1d4ed8", fontWeight: 700, mb: 0.25, fontSize: "10px" }}>GSTIN: {activeCompany.gstin}{(activeCompany as any).cin ? ` | CIN: ${(activeCompany as any).cin}` : ''}</Typography>
                   <Typography sx={{ fontSize: "10px" }}><strong>HO:</strong> {activeCompany.headOffice}</Typography>
-                  {activeCompany.warehouse && <Typography sx={{ fontSize: "10px" }}><strong>WH:</strong> {activeCompany.warehouse}</Typography>}
+                  {(activeCompany as any).warehouse && <Typography sx={{ fontSize: "10px" }}><strong>WH:</strong> {(activeCompany as any).warehouse}</Typography>}
                   <Typography sx={{ fontSize: "10px" }}><strong>Contact:</strong> {activeCompany.phone}{activeCompany.email ? ` | Email: ${activeCompany.email}` : ''}</Typography>
                 </Box>
               </Box>
@@ -929,12 +1208,13 @@ export default function QuotationBuilder() {
               <Typography sx={{ fontSize: "9px", color: "#94a3b8", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>Customer Signature</Typography>
             </Box>
             <Box sx={{ textAlign: "right", position: "relative" }}>
-              <Typography sx={{ fontSize: "14px", fontWeight: 900, color: "#1e3a5f", mb: 0, textDecoration: "underline", textDecorationColor: "#eab308", textUnderlineOffset: 4 }}>For Arpit Solar Shop</Typography>
-              <Box component="img" src={origin ? `${origin}/signature.png` : "/signature.png"} alt="Authorized Signatory" sx={{ width: 120, height: 60, objectFit: "contain", display: "block", ml: "auto", my: 1 }} onError={(e: any) => e.target.style.display = 'none'} />
+              <Typography sx={{ fontSize: "14px", fontWeight: 900, color: "#1e3a5f", mb: 0, textDecoration: "underline", textDecorationColor: "#eab308", textUnderlineOffset: 4 }}>For {activeCompany.name}</Typography>
+              <Box component="img" src={origin ? `${origin}${(activeCompany as any).signature || '/signature.png'}` : ((activeCompany as any).signature || '/signature.png')} alt="Authorized Signatory" sx={{ width: 200, height: 90, objectFit: "contain", display: "block", ml: "auto", my: 1 }} onError={(e: any) => e.target.style.display = 'none'} />
               <Box sx={{ width: 192, height: 1, bgcolor: "#cbd5e1", mb: 0.5, ml: "auto" }} />
               <Typography sx={{ fontSize: "9px", color: "#94a3b8", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>Authorized Signatory</Typography>
             </Box>
           </Box>
+          </>)}
         </Box>
       </Box>
 

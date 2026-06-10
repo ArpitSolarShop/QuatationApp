@@ -17,32 +17,47 @@ export async function sendWhatsAppMessage(phone: string, pdfUrl: string) {
     }
     if (cleanedPhone.length !== 10) throw new Error(`Invalid phone number: ${phone}`);
     formattedPhone = `+91${cleanedPhone}`;
+    // Extract clean filename from URL (handles signed URLs with query params)
+    const urlPath = new URL(pdfUrl).pathname;
+    const cleanFilename = urlPath.split('/').pop() || 'quotation.pdf';
+
     const payload = {
-      messages: [{ to: formattedPhone, from: senderPhone, content: { templateName: 'quotation_document', language: 'en', templateData: { header: { type: 'DOCUMENT' as const, mediaUrl: pdfUrl, filename: pdfUrl.split('/').pop() }, body: { placeholders: [] } } } }]
+      messages: [{ to: formattedPhone, from: senderPhone, content: { templateName: 'quotation_document', language: 'en', templateData: { header: { type: 'DOCUMENT' as const, mediaUrl: pdfUrl, filename: cleanFilename }, body: { placeholders: [] } } } }]
     };
-    const send = async () => axios.post(
-      'https://public.doubletick.io/whatsapp/message/template',
-      payload,
-      { headers: { 'accept': 'application/json', 'content-type': 'application/json', 'Authorization': apiKey }, timeout: 15000 }
-    );
+
+    console.log(`📤 Sending WhatsApp to ${formattedPhone} with PDF: ${cleanFilename}`);
+    console.log(`   PDF URL length: ${pdfUrl.length} chars`);
+
+    const send = async () => {
+      const response = await axios.post(
+        'https://public.doubletick.io/whatsapp/message/template',
+        payload,
+        { headers: { 'accept': 'application/json', 'content-type': 'application/json', 'Authorization': apiKey }, timeout: 20000 }
+      );
+      // Log the DoubleTick response for debugging
+      console.log('DoubleTick response:', JSON.stringify(response.data));
+      return response;
+    };
     let attempt = 0;
     const maxAttempts = 3;
     while (true) {
       try {
         await send();
         break;
-      } catch (err: any) {
+      } catch (err: unknown) {
         attempt += 1;
-        const isTimeout = err?.code === 'ECONNABORTED' || /timeout/i.test(err?.message || '');
+        const axErr = err as any;
+        const isTimeout = axErr?.code === 'ECONNABORTED' || /timeout/i.test(axErr?.message || '');
+        console.warn(`WhatsApp send attempt ${attempt}/${maxAttempts} failed:`, axErr?.response?.data || axErr?.message);
         if (attempt >= maxAttempts || !isTimeout) throw err;
-        const backoffMs = 500 * Math.pow(2, attempt - 1);
+        const backoffMs = 1000 * Math.pow(2, attempt - 1);
         await new Promise((r) => setTimeout(r, backoffMs));
       }
     }
-    console.log(`WhatsApp message sent to ${formattedPhone}`);
-  } catch (error: any) {
-    const errorData = error.response?.data;
-    console.error('Doubletick API error:', errorData || error.message);
+    console.log(`✅ WhatsApp message queued for ${formattedPhone} (note: delivery is async)`);
+  } catch (error) {
+    const errorData = (error as any).response?.data;
+    console.error('Doubletick API error:', errorData || (error as any).message);
     
     // Check if the error indicates the number is not registered on WhatsApp
     let errorMessage = 'Failed to send WhatsApp message.';

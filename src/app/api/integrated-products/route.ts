@@ -22,9 +22,9 @@ export async function POST(request: Request) {
     if (error) throw error;
 
     return NextResponse.json({ success: true, data: data?.[0] ?? null });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Save integrated product error:', err);
-    return NextResponse.json({ success: false, message: err?.message ?? 'Failed to save product' }, { status: 500 });
+    return NextResponse.json({ success: false, message: (err as Error)?.message ?? 'Failed to save product' }, { status: 500 });
   }
 }
 
@@ -37,8 +37,8 @@ export async function GET() {
       .limit(100);
     if (error) throw error;
     return NextResponse.json({ success: true, data });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Fetch integrated products error:', err);
-    return NextResponse.json({ success: false, message: err?.message ?? 'Failed to fetch products' }, { status: 500 });
+    return NextResponse.json({ success: false, message: (err as Error)?.message ?? 'Failed to fetch products' }, { status: 500 });
   }
 }

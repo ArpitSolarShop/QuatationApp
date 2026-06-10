@@ -132,11 +132,11 @@ This quotation is valid for 7 days.`;
             message: "Email sent successfully"
         });
 
-    } catch (error: any) {
+    } catch (error) {
         console.error("Email API error:", error);
         return NextResponse.json({
             success: false,
-            message: error.message || "Failed to send email"
+            message: (error as any).message || "Failed to send email"
         }, { status: 500 });
     }
 }

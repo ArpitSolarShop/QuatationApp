@@ -23,6 +23,7 @@ export const companies = [
         },
         // Logo
         logo: "/logo.png",
+        signature: "/signature.png",
         // Authorized Signatory
         authorizedSignatory: "Ratnesh Mishra",
     },
@@ -50,8 +51,9 @@ export const companies = [
         },
         // Logo
         logo: "/krishnanuja.png",
+        signature: "/Rahul_Sign.png",
         // Authorized Signatory
-        authorizedSignatory: "Ratnesh Mishra",
+        authorizedSignatory: "Rahul Mishra",
     }
 ];
 
@@ -192,6 +194,55 @@ export const defaultComponents = {
         { name: 'Lightning Arrestor', description: 'Conventional Type 1.25" Dia.', quantity: '1 Set', make: 'Standard', sort_order: 7 },
     ],
 };
+
+// ========== SERVICE PROPOSAL DEFAULTS ==========
+
+// Default Service Types (O&M, Cleaning, AMC etc.)
+export type ServiceItem = {
+    sno: number;
+    description: string;
+    hsnSac: string;
+    qty: string;
+    unit: string;
+    rate: number;
+    amount: number;
+    monthlyRate?: number;
+};
+
+export const defaultServiceItems: ServiceItem[] = [
+    {
+        sno: 1,
+        description: 'Operation & Maintenance Works (O & M) Solar Power Plant',
+        hsnSac: '998717',
+        qty: '1',
+        unit: 'Year',
+        rate: 320000,
+        amount: 320000,
+        monthlyRate: 26666.67,
+    },
+];
+
+export const serviceGstRate = 18; // 18% GST for services
+
+// Default Service Terms & Conditions
+export const defaultServiceTerms: string[] = [
+    'Annual Calibration: Annual calibration of all energy meters shall be carried out. Any additional related activities covered under Operation & Maintenance (O&M) shall also be included within the scope of this proposal.',
+    'Module Cleaning Frequency & Manpower: One (1) scheduled module cleaning will be provided per month. If a 2nd cleaning is required within the same month, it will be subject to a 50% extra charge.',
+    'Consumable Electrical Components: Replacement of minor consumable items including MC4 connectors, lugs, and nut bolts shall be included up to five (05) pieces each per month. Any requirement beyond this quantity shall be chargeable at actual material cost.',
+    'Major Equipment Faults: Repairs or replacement related to major components such as inverters, ACDB, DCDB, PV modules, earthing systems, etc., shall be chargeable at actual material cost.',
+    'Site Facilities: The client shall provide a suitable office space at site for deployment of manpower, along with adequate storage for tools and tackles.',
+    'Contract Finalization: The contract shall be executed only after a joint site inspection conducted in the presence of the client\'s authorized representative.',
+];
+
+// Generate Service Proposal Reference Number
+export const generateServiceRefNumber = (prefix: string = 'KRPL'): string => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    return `${prefix}/OM/${year}-${month}`;
+};
+
+// ========== END SERVICE PROPOSAL DEFAULTS ==========
 
 // Savings Calculator Constants
 export const savingsConfig = {

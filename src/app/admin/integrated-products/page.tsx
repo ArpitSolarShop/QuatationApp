@@ -17,7 +17,7 @@ export default function AdminIntegratedProductsPage() {
       const json = await res.json();
       if (json?.success) setItems(json.data ?? []);
       else setError(json?.message ?? 'Failed to load products');
-    } catch (e: any) {
+    } catch (e) {
       setError(String(e));
     } finally {
       setLoading(false);

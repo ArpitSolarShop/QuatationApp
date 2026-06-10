@@ -142,8 +142,8 @@ export default function ProductsAdminPage() {
             } else {
                 throw new Error(data.message);
             }
-        } catch (error: any) {
-            setNotification({ open: true, message: error.message, severity: "error" });
+        } catch (error) {
+            setNotification({ open: true, message: (error as any).message, severity: "error" });
         }
     };
 
@@ -160,8 +160,8 @@ export default function ProductsAdminPage() {
             } else {
                 throw new Error(data.message);
             }
-        } catch (error: any) {
-            setNotification({ open: true, message: error.message, severity: "error" });
+        } catch (error) {
+            setNotification({ open: true, message: (error as any).message, severity: "error" });
         }
     };
 

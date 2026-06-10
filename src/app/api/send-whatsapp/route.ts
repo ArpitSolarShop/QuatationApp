@@ -119,8 +119,8 @@ Dear *${customerName}*,
 
         return NextResponse.json({ success: true, message: `Sent to ${formattedPhone}` });
 
-    } catch (err: any) {
+    } catch (err: unknown) {
         console.error("Error:", err);
-        return NextResponse.json({ success: false, message: err.message }, { status: 500 });
+        return NextResponse.json({ success: false, message: (err as Error)?.message || 'Unknown error' }, { status: 500 });
     }
 }

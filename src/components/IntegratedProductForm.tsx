@@ -53,8 +53,8 @@ export default function IntegratedProductForm({ onSaved }: { onSaved?: (item?: a
         // Notify parent to refresh the list
         try { if (onSaved) onSaved(json.data ?? null); } catch {}
       }
-    } catch (err: any) {
-      setMessage({ type: 'error', text: err?.message || 'Validation failed' });
+    } catch (err: unknown) {
+      setMessage({ type: 'error', text: (err as Error)?.message || 'Validation failed' });
     } finally {
       setLoading(false);
     }
