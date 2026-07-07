@@ -123,6 +123,7 @@ export async function POST(request: Request) {
       browser = await puppeteer.launch({
         headless: true,
         args: ['--no-sandbox', '--disable-setuid-sandbox'],
+        executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
       });
     }
     let pdfBuffer: Buffer | Uint8Array;

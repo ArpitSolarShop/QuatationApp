@@ -52,6 +52,8 @@ export async function POST(request: Request) {
             terms,
             components,
             salesperson,
+            pdf_url,
+            status,
         } = body;
 
         if (!customer_name) {
@@ -117,7 +119,8 @@ export async function POST(request: Request) {
                 components: components || null,
                 savings_data: savings,
                 salesperson: salesperson || null,
-                status: 'draft',
+                status: status || 'draft',
+                pdf_url: pdf_url || null,
             }])
             .select()
             .single();

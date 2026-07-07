@@ -291,7 +291,7 @@ export default function QuotationBuilder() {
 
   const handleReset = () => { setCustomerName(""); setCustomerPhone(""); setCustomerAddress(""); setCapacityKw(3); setPhase(1); setPanelWattage(620); setPanelBrand("Adani"); setPriceInput(180000); setInverterModel("3 KW On-Grid String"); setInverterModelEdited(false); };
 
-  const saveToDatabase = async () => {
+  const saveToDatabase = async (pdfUrl?: string, status: string = 'draft') => {
     if (!customerName) return;
     try {
       const response = await fetch("/api/quotations", {
@@ -311,7 +311,9 @@ export default function QuotationBuilder() {
           state_subsidy: stateSubsidy,
           terms,
           components,
-          salesperson: activeCompany.authorizedSignatory
+          salesperson: activeCompany.authorizedSignatory,
+          pdf_url: pdfUrl,
+          status: status
         })
       });
       const result = await response.json();
@@ -394,7 +396,7 @@ export default function QuotationBuilder() {
       const result = await response.json();
 
       if (response.ok) {
-        saveToDatabase(); // Auto-save
+        saveToDatabase(result.url, "sent"); // Auto-save
         setNotification({ open: true, message: "Quotation PDF queued for WhatsApp delivery. It may take a moment to reach the customer.", severity: "success" });
       } else {
         throw new Error(result.message || "Failed to send WhatsApp");

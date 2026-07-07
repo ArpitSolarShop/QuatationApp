@@ -30,6 +30,7 @@ type Quotation = {
     total_amount: number | null;
     status: string;
     created_at: string;
+    pdf_url?: string;
 };
 
 export default function QuotationsAdminPage() {
@@ -219,8 +220,8 @@ export default function QuotationsAdminPage() {
                                                 </TableCell>
                                                 <TableCell>{formatDate(quotation.created_at)}</TableCell>
                                                 <TableCell align="center">
-                                                    <IconButton size="small" title="View Details">
-                                                        <Visibility fontSize="small" />
+                                                    <IconButton size="small" title="View PDF" onClick={() => quotation.pdf_url ? window.open(quotation.pdf_url, '_blank') : alert('PDF not available for this quotation.')}>
+                                                        <Visibility fontSize="small" color={quotation.pdf_url ? "primary" : "inherit"} />
                                                     </IconButton>
                                                     <IconButton size="small" color="success" title="Send via WhatsApp">
                                                         <WhatsApp fontSize="small" />
