@@ -51,6 +51,7 @@
     "@types/sql.js": "^1.4.11",
     "eslint": "^9",
     "eslint-config-next": "15.5.4",
+    "pg": "^8.22.0",
     "puppeteer": "^24.24.1",
     "tailwindcss": "^4",
     "typescript": "^5"

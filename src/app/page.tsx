@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback, Suspense } from "react";
 import {
   Box,
   Typography,
@@ -49,6 +49,7 @@ import {
 } from "@mui/icons-material";
 import { useReactToPrint } from "react-to-print";
 import Link from "next/link";
+import { useSearchParams, useRouter } from "next/navigation";
 import {
   companies,
   defaultTerms,
@@ -92,7 +93,24 @@ const panelBrands = ["Adani", "Tata", "Waaree", "Reliance", "Premier", "Emvee", 
 // Inverter brands
 const inverterBrands = ["Polycab", "Shakti", "Growatt", "Sungrow", "Huawei", "Deye", "Servotech", "Luminous", "GoodWe", "Solis", "Solax", "Sofar Solar", "Other"];
 
-export default function QuotationBuilder() {
+// Wrapper with Suspense for useSearchParams
+export default function QuotationBuilderPage() {
+  return (
+    <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}><Typography>Loading...</Typography></Box>}>
+      <QuotationBuilder />
+    </Suspense>
+  );
+}
+
+function QuotationBuilder() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const editId = searchParams.get('edit');
+
+  // Edit Mode State
+  const [editingQuotationId, setEditingQuotationId] = useState<string | null>(null);
+  const [editLoaded, setEditLoaded] = useState(false);
+
   // Company Selection
   const [selectedCompanyId, setSelectedCompanyId] = useState(companies[0].id);
   const activeCompany = useMemo(() => companies.find(c => c.id === selectedCompanyId) || companies[0], [selectedCompanyId]);
@@ -156,6 +174,95 @@ export default function QuotationBuilder() {
       setOrigin(window.location.origin);
     }
   }, []);
+
+  // ===== EDIT MODE: Load quotation data from URL param =====
+  useEffect(() => {
+    if (!editId || editLoaded) return;
+    
+    const loadQuotation = async () => {
+      try {
+        setLoading(true);
+        const res = await fetch(`/api/quotations/${editId}`);
+        const result = await res.json();
+        if (!result.success || !result.data) {
+          setNotification({ open: true, message: "Failed to load quotation for editing", severity: "error" });
+          return;
+        }
+        
+        const q = result.data;
+        setEditingQuotationId(q.id);
+        
+        // If form_data is saved (full form snapshot), use it for exact restoration
+        const fd = q.form_data;
+        if (fd) {
+          // Restore all form fields from snapshot
+          if (fd.selectedCompanyId) setSelectedCompanyId(fd.selectedCompanyId);
+          if (fd.selectedSystemType) setSelectedSystemType(fd.selectedSystemType);
+          if (fd.capacityKw !== undefined) setCapacityKw(fd.capacityKw);
+          if (fd.phase !== undefined) setPhase(fd.phase);
+          if (fd.panelWattage !== undefined) setPanelWattage(fd.panelWattage);
+          if (fd.panelBrand) setPanelBrand(fd.panelBrand);
+          if (fd.customPanelBrand) setCustomPanelBrand(fd.customPanelBrand);
+          if (fd.panelType) setPanelType(fd.panelType);
+          if (fd.panelWarranty) setPanelWarranty(fd.panelWarranty);
+          if (fd.inverterBrand) setInverterBrand(fd.inverterBrand);
+          if (fd.customInverterBrand) setCustomInverterBrand(fd.customInverterBrand);
+          if (fd.inverterModel) { setInverterModel(fd.inverterModel); setInverterModelEdited(true); }
+          if (fd.inverterWarranty) setInverterWarranty(fd.inverterWarranty);
+          if (fd.batteryWarranty) setBatteryWarranty(fd.batteryWarranty);
+          if (fd.customBatteryWarranty) setCustomBatteryWarranty(fd.customBatteryWarranty);
+          if (fd.priceInput !== undefined) setPriceInput(fd.priceInput);
+          if (fd.gstRate !== undefined) setGstRate(fd.gstRate);
+          if (fd.centralSubsidy !== undefined) setCentralSubsidy(fd.centralSubsidy);
+          if (fd.stateSubsidy !== undefined) setStateSubsidy(fd.stateSubsidy);
+          // Extra costs
+          if (fd.extraStructureEnabled !== undefined) setExtraStructureEnabled(fd.extraStructureEnabled);
+          if (fd.extraStructureRate !== undefined) setExtraStructureRate(fd.extraStructureRate);
+          if (fd.extraPanelsEnabled !== undefined) setExtraPanelsEnabled(fd.extraPanelsEnabled);
+          if (fd.extraPanelCount !== undefined) setExtraPanelCount(fd.extraPanelCount);
+          if (fd.extraPanelPrice !== undefined) setExtraPanelPrice(fd.extraPanelPrice);
+          if (fd.extraWireEnabled !== undefined) setExtraWireEnabled(fd.extraWireEnabled);
+          if (fd.extraWireLength !== undefined) setExtraWireLength(fd.extraWireLength);
+          if (fd.extraWireRate !== undefined) setExtraWireRate(fd.extraWireRate);
+        } else {
+          // Fallback: restore from basic quotation fields
+          if (q.capacity_kw) setCapacityKw(q.capacity_kw);
+          if (q.phase) setPhase(q.phase);
+          if (q.brand) setPanelBrand(panelBrands.includes(q.brand) ? q.brand : "Other");
+          if (q.brand && !panelBrands.includes(q.brand)) setCustomPanelBrand(q.brand);
+          if (q.gst_rate) setGstRate(q.gst_rate);
+          if (q.central_subsidy !== undefined) setCentralSubsidy(q.central_subsidy || 0);
+          if (q.state_subsidy !== undefined) setStateSubsidy(q.state_subsidy || 0);
+          // Reconstruct price input from base_price (inc GST)
+          if (q.base_price && q.gst_rate) {
+            setPriceInput(Math.round(q.base_price * (1 + (q.gst_rate || 0) / 100)));
+          }
+        }
+        
+        // Always restore customer info and components/terms
+        setCustomerName(q.customer_name || "");
+        setCustomerPhone(q.customer_phone || "");
+        setCustomerAddress(q.customer_address || "");
+        if (q.components && Array.isArray(q.components) && q.components.length > 0) {
+          setComponents(q.components);
+        }
+        if (q.terms && Array.isArray(q.terms) && q.terms.length > 0) {
+          setTerms(q.terms);
+        }
+        
+        setEditLoaded(true);
+        setNotification({ open: true, message: `Editing quotation for ${q.customer_name}`, severity: "info" });
+      } catch (error) {
+        console.error("Failed to load quotation:", error);
+        setNotification({ open: true, message: "Failed to load quotation", severity: "error" });
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadQuotation();
+  }, [editId, editLoaded]);
+
   const [notification, setNotification] = useState<{ open: boolean; message: string; severity: "success" | "error" | "info" | "warning" }>({ open: false, message: "", severity: "success" });
   const [editComponentDialog, setEditComponentDialog] = useState(false);
   const [editingComponent, setEditingComponent] = useState<QuotationComponent | null>(null);
@@ -202,20 +309,62 @@ export default function QuotationBuilder() {
   const numberOfPanels = useMemo(() => Math.ceil((capacityKw * 1000) / (panelWattage || 1)), [capacityKw, panelWattage]);
   const actualSystemSize = useMemo(() => +((numberOfPanels * (panelWattage || 0)) / 1000).toFixed(2), [numberOfPanels, panelWattage]);
 
-  // Load default components when system type changes
-  useEffect(() => {
-    const defaults = defaultComponents[selectedSystemType as keyof typeof defaultComponents];
-    if (defaults) {
-      const updatedDefaults = defaults.map((c, i) => {
-        if (i === 0) return { ...c, description: `${panelWattage}Wp (${panelType}) Modules`, quantity: `${numberOfPanels.toString().padStart(2, '0')} Nos`, make: effectivePanelBrand, sort_order: i };
-        if (i === 1) return { ...c, description: inverterModel, make: effectiveInverterBrand, sort_order: i };
-        return { ...c, sort_order: i };
-      });
-      setComponents(updatedDefaults);
+  // Load components from API (or fall back to hardcoded defaults) when system type changes
+  const fetchComponentsFromApi = useCallback(async (systemType: string) => {
+    // Skip fetching if in edit mode and data hasn't been loaded yet
+    if (editingQuotationId && !editLoaded) return;
+    try {
+      const res = await fetch(`/api/components?system_type=${encodeURIComponent(systemType)}`);
+      const data = await res.json();
+      if (data.success && data.data && data.data.length > 0 && !data.fromDefaults) {
+        // Got components from DB — use them as base, apply current panel/inverter info
+        const dbComponents = data.data.map((c: any, i: number) => ({
+          name: c.name,
+          description: c.description || '',
+          quantity: c.default_quantity || c.quantity || '1 Nos',
+          make: c.default_make || c.make || 'Standard',
+          sort_order: c.sort_order ?? i,
+        }));
+        // Update first component (panels) and second (inverter) with current form values
+        const updatedComponents = dbComponents.map((c: any, i: number) => {
+          if (i === 0) return { ...c, description: `${panelWattage}Wp (${panelType}) Modules`, quantity: `${numberOfPanels.toString().padStart(2, '0')} Nos`, make: effectivePanelBrand };
+          if (i === 1) return { ...c, description: inverterModel, make: effectiveInverterBrand };
+          return c;
+        });
+        setComponents(updatedComponents);
+      } else {
+        // Fall back to hardcoded defaults
+        const defaults = defaultComponents[systemType as keyof typeof defaultComponents];
+        if (defaults) {
+          const updatedDefaults = defaults.map((c, i) => {
+            if (i === 0) return { ...c, description: `${panelWattage}Wp (${panelType}) Modules`, quantity: `${numberOfPanels.toString().padStart(2, '0')} Nos`, make: effectivePanelBrand, sort_order: i };
+            if (i === 1) return { ...c, description: inverterModel, make: effectiveInverterBrand, sort_order: i };
+            return { ...c, sort_order: i };
+          });
+          setComponents(updatedDefaults);
+        }
+      }
+    } catch {
+      // On error, fall back to hardcoded defaults
+      const defaults = defaultComponents[systemType as keyof typeof defaultComponents];
+      if (defaults) {
+        const updatedDefaults = defaults.map((c, i) => {
+          if (i === 0) return { ...c, description: `${panelWattage}Wp (${panelType}) Modules`, quantity: `${numberOfPanels.toString().padStart(2, '0')} Nos`, make: effectivePanelBrand, sort_order: i };
+          if (i === 1) return { ...c, description: inverterModel, make: effectiveInverterBrand, sort_order: i };
+          return { ...c, sort_order: i };
+        });
+        setComponents(updatedDefaults);
+      }
     }
-    const defaultTermsList = defaultTerms[selectedSystemType as keyof typeof defaultTerms];
+    const defaultTermsList = defaultTerms[systemType as keyof typeof defaultTerms];
     if (defaultTermsList) setTerms(defaultTermsList.slice(0, 8));
-  }, [selectedSystemType, panelWattage, effectivePanelBrand, panelType, numberOfPanels, effectiveInverterBrand, inverterModel]);
+  }, [panelWattage, effectivePanelBrand, panelType, numberOfPanels, effectiveInverterBrand, inverterModel, editingQuotationId, editLoaded]);
+
+  useEffect(() => {
+    if (!isServiceMode) {
+      fetchComponentsFromApi(selectedSystemType);
+    }
+  }, [selectedSystemType, panelWattage, effectivePanelBrand, panelType, numberOfPanels, effectiveInverterBrand, inverterModel, isServiceMode, fetchComponentsFromApi]);
 
   // Update inverter model when capacity changes (only if not manually edited)
   useEffect(() => {
@@ -289,13 +438,56 @@ export default function QuotationBuilder() {
   const handleDeleteComponent = (index: number) => setComponents(components.filter((_, i) => i !== index));
   const handleAddComponent = () => { if (newComponent.name) { setComponents([...components, { ...newComponent, sort_order: components.length }]); setNewComponent({ name: "", description: "", quantity: "1 Nos", make: "Standard", sort_order: 0 }); setAddComponentDialog(false); } };
 
-  const handleReset = () => { setCustomerName(""); setCustomerPhone(""); setCustomerAddress(""); setCapacityKw(3); setPhase(1); setPanelWattage(620); setPanelBrand("Adani"); setPriceInput(180000); setInverterModel("3 KW On-Grid String"); setInverterModelEdited(false); };
+  const handleReset = () => {
+    setCustomerName(""); setCustomerPhone(""); setCustomerAddress(""); setCapacityKw(3); setPhase(1); setPanelWattage(620); setPanelBrand("Adani"); setPriceInput(180000); setInverterModel("3 KW On-Grid String"); setInverterModelEdited(false);
+    // Clear edit mode
+    if (editingQuotationId) {
+      setEditingQuotationId(null);
+      setEditLoaded(false);
+      router.push('/', { scroll: false });
+    }
+  };
+
+  // Build form_data snapshot for round-trip editing
+  const getFormDataSnapshot = useCallback(() => ({
+    selectedCompanyId,
+    selectedSystemType,
+    capacityKw,
+    phase,
+    panelWattage,
+    panelBrand,
+    customPanelBrand,
+    panelType,
+    panelWarranty,
+    inverterBrand,
+    customInverterBrand,
+    inverterModel,
+    inverterWarranty,
+    batteryWarranty,
+    customBatteryWarranty,
+    priceInput,
+    gstRate,
+    centralSubsidy,
+    stateSubsidy,
+    extraStructureEnabled,
+    extraStructureRate,
+    extraPanelsEnabled,
+    extraPanelCount,
+    extraPanelPrice,
+    extraWireEnabled,
+    extraWireLength,
+    extraWireRate,
+  }), [selectedCompanyId, selectedSystemType, capacityKw, phase, panelWattage, panelBrand, customPanelBrand, panelType, panelWarranty, inverterBrand, customInverterBrand, inverterModel, inverterWarranty, batteryWarranty, customBatteryWarranty, priceInput, gstRate, centralSubsidy, stateSubsidy, extraStructureEnabled, extraStructureRate, extraPanelsEnabled, extraPanelCount, extraPanelPrice, extraWireEnabled, extraWireLength, extraWireRate]);
 
   const saveToDatabase = async (pdfUrl?: string, status: string = 'draft') => {
     if (!customerName) return;
     try {
-      const response = await fetch("/api/quotations", {
-        method: "POST",
+      const isEditing = !!editingQuotationId;
+      const url = isEditing ? `/api/quotations/${editingQuotationId}` : "/api/quotations";
+      const method = isEditing ? "PUT" : "POST";
+
+      const response = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           customer_name: customerName,
@@ -313,16 +505,21 @@ export default function QuotationBuilder() {
           components,
           salesperson: activeCompany.authorizedSignatory,
           pdf_url: pdfUrl,
-          status: status
+          status: status,
+          form_data: getFormDataSnapshot(),
         })
       });
       const result = await response.json();
       if (!response.ok || !result.success) {
-        throw new Error(result.message || "Failed to auto-save quotation");
+        throw new Error(result.message || "Failed to save quotation");
       }
-      console.log("Quotation auto-saved to database");
+      // If new quotation, set editing ID for future updates
+      if (!isEditing && result.data?.id) {
+        setEditingQuotationId(result.data.id);
+      }
+      console.log(`Quotation ${isEditing ? 'updated' : 'created'} in database`);
     } catch (error) {
-      console.error("Auto-save failed:", error);
+      console.error("Save failed:", error);
     }
   };
 
@@ -340,6 +537,84 @@ export default function QuotationBuilder() {
     stateSubsidy
   });
 
+  // Build quote data for PDF generation (reused by WhatsApp, Print, Save)
+  const buildQuoteData = (options?: { skipWhatsApp?: boolean }) => ({
+    customerInfo: {
+      name: customerName,
+      phone: customerPhone,
+      address: customerAddress || ""
+    },
+    selectedProduct: {
+      systemType: selectedSystemType,
+      capacity: actualSystemSize,
+      phase: phase,
+      panelBrand: effectivePanelBrand,
+      panelWattage: panelWattage,
+      panelType: panelType,
+      panelWarranty: panelWarranty,
+      inverterBrand: inverterModel,
+      inverterWarranty: inverterWarranty,
+      batteryWarranty: effectiveBatteryWarranty,
+    },
+    calculations: {
+      basePrice: calculations.originalBasePrice,
+      extraCosts: extraCosts.total,
+      subtotal: calculations.basePrice,
+      gstAmount: calculations.gstAmount,
+      total: calculations.totalAmount,
+      discount: 0,
+      grandTotal: calculations.totalAmount,
+      centralSubsidy,
+      stateSubsidy,
+      effectiveCost: calculations.effectiveCost
+    },
+    savings: calculations,
+    taxRate: gstRate / 100,
+    components,
+    terms,
+    companyDetails: activeCompany,
+    skipWhatsApp: options?.skipWhatsApp ?? true,
+  });
+
+  // Generate PDF, upload to Supabase, and save to DB (reusable)
+  const generateAndSavePdf = async (status: string = 'saved'): Promise<string | null> => {
+    if (!customerName) { setNotification({ open: true, message: "Customer name is required", severity: "error" }); return null; }
+    try {
+      const quoteData = buildQuoteData({ skipWhatsApp: true });
+      const response = await fetch("/api/quote", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(quoteData)
+      });
+      const result = await response.json();
+      if (response.ok && result.url) {
+        await saveToDatabase(result.url, status);
+        return result.url;
+      } else {
+        throw new Error(result.message || "Failed to generate PDF");
+      }
+    } catch (error) {
+      console.error("PDF generation error:", error);
+      throw error;
+    }
+  };
+
+  // Print handler — also generates PDF + saves
+  const handlePrintWithSave = async () => {
+    if (!customerName) { setNotification({ open: true, message: "Customer name is required", severity: "error" }); return; }
+    setLoading(true);
+    setNotification({ open: true, message: "Generating PDF and preparing print...", severity: "info" });
+    try {
+      await generateAndSavePdf('sent');
+      handlePrint();
+      setNotification({ open: true, message: "✅ Quotation saved and printed!", severity: "success" });
+    } catch (error) {
+      // Still allow printing even if PDF save fails
+      handlePrint();
+      setNotification({ open: true, message: "Printed (PDF save failed: " + (error as any).message + ")", severity: "warning" });
+    } finally { setLoading(false); }
+  };
+
   // WhatsApp handler - generates PDF, uploads to Supabase, sends via DoubleTick
   const handleSendWhatsApp = async () => {
     if (!customerName) { setNotification({ open: true, message: "Customer name is required", severity: "error" }); return; }
@@ -349,43 +624,7 @@ export default function QuotationBuilder() {
     setNotification({ open: true, message: "Generating PDF and sending to WhatsApp...", severity: "info" });
 
     try {
-      // Prepare quote data for PDF generation
-      const quoteData = {
-        customerInfo: {
-          name: customerName,
-          phone: customerPhone,
-          address: customerAddress || ""
-        },
-        selectedProduct: {
-          systemType: selectedSystemType,
-          capacity: actualSystemSize,
-          phase: phase,
-          panelBrand: effectivePanelBrand,
-          panelWattage: panelWattage,
-          panelType: panelType,
-          panelWarranty: panelWarranty,
-          inverterBrand: inverterModel,
-          inverterWarranty: inverterWarranty,
-          batteryWarranty: effectiveBatteryWarranty,
-        },
-        calculations: {
-          basePrice: calculations.originalBasePrice,
-          extraCosts: extraCosts.total,
-          subtotal: calculations.basePrice,
-          gstAmount: calculations.gstAmount,
-          total: calculations.totalAmount,
-          discount: 0,
-          grandTotal: calculations.totalAmount,
-          centralSubsidy,
-          stateSubsidy,
-          effectiveCost: calculations.effectiveCost
-        },
-        savings: calculations,
-        taxRate: gstRate / 100,
-        components,
-        terms,
-        companyDetails: activeCompany
-      };
+      const quoteData = buildQuoteData({ skipWhatsApp: false });
 
       const response = await fetch("/api/quote", {
         method: "POST",
@@ -396,7 +635,7 @@ export default function QuotationBuilder() {
       const result = await response.json();
 
       if (response.ok) {
-        saveToDatabase(result.url, "sent"); // Auto-save
+        saveToDatabase(result.url, "sent");
         setNotification({ open: true, message: "Quotation PDF queued for WhatsApp delivery. It may take a moment to reach the customer.", severity: "success" });
       } else {
         throw new Error(result.message || "Failed to send WhatsApp");
@@ -419,6 +658,11 @@ export default function QuotationBuilder() {
 
     setLoading(true);
     try {
+      // Generate and save PDF first
+      try {
+        await generateAndSavePdf('sent');
+      } catch { /* PDF save failure shouldn't block email */ }
+
       const response = await fetch("/api/send-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -536,6 +780,23 @@ export default function QuotationBuilder() {
             </Box>
           </Box>
         </Box>
+
+        {/* Editing Banner */}
+        {editingQuotationId && (
+          <Box sx={{ p: 1.5, bgcolor: "#2563eb", color: "white", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <Typography variant="body2" fontWeight="bold" sx={{ fontSize: 12 }}>
+              ✏️ Editing: {customerName || "Quotation"}
+            </Typography>
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={handleReset}
+              sx={{ color: "white", borderColor: "rgba(255,255,255,0.5)", fontSize: 10, py: 0, "&:hover": { borderColor: "white", bgcolor: "rgba(255,255,255,0.1)" } }}
+            >
+              Cancel Edit
+            </Button>
+          </Box>
+        )}
 
         {/* Scrollable Form */}
         <Box sx={{ flex: 1, overflow: "auto", p: 0 }}>
@@ -912,15 +1173,15 @@ export default function QuotationBuilder() {
         {/* Action Buttons */}
         <Box sx={{ p: 1.5, borderTop: "1px solid #e2e8f0", display: "flex", flexDirection: "column", gap: 1 }}>
           <Box sx={{ display: "flex", gap: 1 }}>
-            <Tooltip title="Print Quotation">
-              <Button variant="contained" size="small" startIcon={<Print />} onClick={() => { saveToDatabase(); handlePrint(); }} sx={{ flex: 1, bgcolor: "#eab308", "&:hover": { bgcolor: "#ca8a04" } }}>Print</Button>
+            <Tooltip title="Generate PDF, save & print">
+              <Button variant="contained" size="small" startIcon={<Print />} onClick={handlePrintWithSave} disabled={loading} sx={{ flex: 1, bgcolor: "#3b82f6", "&:hover": { bgcolor: "#2563eb" } }}>Save & Print</Button>
             </Tooltip>
           </Box>
           <Box sx={{ display: "flex", gap: 1 }}>
-            <Tooltip title="Send via WhatsApp">
+            <Tooltip title="Generate PDF & send via WhatsApp">
               <Button variant="contained" size="small" startIcon={<WhatsApp />} onClick={handleSendWhatsApp} disabled={loading} sx={{ flex: 1, bgcolor: "#25D366", "&:hover": { bgcolor: "#128C7E" } }}>WhatsApp</Button>
             </Tooltip>
-            <Tooltip title="Send via Email">
+            <Tooltip title="Generate PDF & send via Email">
               <Button variant="contained" size="small" startIcon={<Email />} onClick={handleSendEmail} disabled={loading} sx={{ flex: 1, bgcolor: "#EA4335", "&:hover": { bgcolor: "#C5221F" } }}>Email</Button>
             </Tooltip>
             <Tooltip title="Reset Form">

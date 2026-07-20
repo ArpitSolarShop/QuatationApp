@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
     Box,
     Typography,
@@ -27,7 +27,7 @@ import {
     Switch,
     FormControlLabel,
 } from "@mui/material";
-import { Add, Edit, Delete, ArrowBack } from "@mui/icons-material";
+import { Add, Edit, Delete, ArrowBack, Save, Restore } from "@mui/icons-material";
 import Link from "next/link";
 import { defaultComponents } from "@/lib/companyDetails";
 
@@ -53,10 +53,12 @@ export default function ComponentsAdminPage() {
     const [selectedSystemType, setSelectedSystemType] = useState("On-grid");
     const [components, setComponents] = useState<Component[]>([]);
     const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+    const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
     const [dialogOpen, setDialogOpen] = useState(false);
     const [editingComponent, setEditingComponent] = useState<Component | null>(null);
     const [editingIndex, setEditingIndex] = useState<number>(-1);
-    const [notification, setNotification] = useState<{ open: boolean; message: string; severity: "success" | "error" }>({
+    const [notification, setNotification] = useState<{ open: boolean; message: string; severity: "success" | "error" | "warning" }>({
         open: false,
         message: "",
         severity: "success",
@@ -70,27 +72,55 @@ export default function ComponentsAdminPage() {
         is_default: true,
     });
 
-    // Load components for selected system type
-    useEffect(() => {
+    // Get hardcoded defaults for the selected system type
+    const getHardcodedDefaults = useCallback((systemType: string): Component[] => {
+        const defaults = defaultComponents[systemType as keyof typeof defaultComponents];
+        if (!defaults) return [];
+        return defaults.map((c: any, i: number) => ({
+            name: c.name,
+            description: c.description,
+            default_quantity: c.quantity,
+            default_make: c.make,
+            sort_order: i,
+            is_default: true,
+        }));
+    }, []);
+
+    // Load components — try API first, then fall back to hardcoded defaults
+    const fetchComponents = useCallback(async (systemType: string) => {
         setLoading(true);
-        // Use default components from companyDetails
-        const defaults = defaultComponents[selectedSystemType as keyof typeof defaultComponents];
-        if (defaults) {
-            setComponents(
-                defaults.map((c: any, i: number) => ({
-                    name: c.name,
-                    description: c.description,
-                    default_quantity: c.quantity,
-                    default_make: c.make,
-                    sort_order: i,
-                    is_default: true,
-                }))
-            );
-        } else {
-            setComponents([]);
+        setHasUnsavedChanges(false);
+        try {
+            const res = await fetch(`/api/components?system_type=${encodeURIComponent(systemType)}`);
+            const data = await res.json();
+            if (data.success && data.data && data.data.length > 0 && !data.fromDefaults) {
+                // We got components from DB
+                setComponents(
+                    data.data.map((c: any, i: number) => ({
+                        id: c.id,
+                        system_type_id: c.system_type_id,
+                        name: c.name,
+                        description: c.description || "",
+                        default_quantity: c.default_quantity || c.quantity || "1 Nos",
+                        default_make: c.default_make || c.make || "Standard",
+                        sort_order: c.sort_order ?? i,
+                        is_default: c.is_default ?? true,
+                    }))
+                );
+            } else {
+                // Fall back to hardcoded defaults
+                setComponents(getHardcodedDefaults(systemType));
+            }
+        } catch {
+            // On error, fall back to hardcoded defaults
+            setComponents(getHardcodedDefaults(systemType));
         }
         setLoading(false);
-    }, [selectedSystemType]);
+    }, [getHardcodedDefaults]);
+
+    useEffect(() => {
+        fetchComponents(selectedSystemType);
+    }, [selectedSystemType, fetchComponents]);
 
     // Handle dialog open
     const handleOpenDialog = (component?: Component, index?: number) => {
@@ -118,7 +148,7 @@ export default function ComponentsAdminPage() {
         setDialogOpen(true);
     };
 
-    // Handle save
+    // Handle save (local edit)
     const handleSave = () => {
         if (!formData.name) {
             setNotification({ open: true, message: "Component name is required", severity: "error" });
@@ -126,16 +156,14 @@ export default function ComponentsAdminPage() {
         }
 
         if (editingIndex >= 0) {
-            // Update existing
             const updated = [...components];
             updated[editingIndex] = {
                 ...components[editingIndex],
                 ...formData,
             };
             setComponents(updated);
-            setNotification({ open: true, message: "Component updated!", severity: "success" });
+            setNotification({ open: true, message: "Component updated locally! Click 'Save All to Database' to persist.", severity: "warning" });
         } else {
-            // Add new
             setComponents([
                 ...components,
                 {
@@ -143,17 +171,19 @@ export default function ComponentsAdminPage() {
                     sort_order: components.length,
                 },
             ]);
-            setNotification({ open: true, message: "Component added!", severity: "success" });
+            setNotification({ open: true, message: "Component added locally! Click 'Save All to Database' to persist.", severity: "warning" });
         }
+        setHasUnsavedChanges(true);
         setDialogOpen(false);
     };
 
-    // Handle delete
+    // Handle delete (local)
     const handleDelete = (index: number) => {
         if (!confirm("Are you sure you want to delete this component?")) return;
         const updated = components.filter((_, i) => i !== index);
         setComponents(updated);
-        setNotification({ open: true, message: "Component deleted!", severity: "success" });
+        setHasUnsavedChanges(true);
+        setNotification({ open: true, message: "Component removed locally! Click 'Save All to Database' to persist.", severity: "warning" });
     };
 
     // Move component up/down
@@ -165,6 +195,62 @@ export default function ComponentsAdminPage() {
         const targetIndex = direction === "up" ? index - 1 : index + 1;
         [updated[index], updated[targetIndex]] = [updated[targetIndex], updated[index]];
         setComponents(updated);
+        setHasUnsavedChanges(true);
+    };
+
+    // ========== SAVE ALL TO DATABASE ==========
+    const handleSaveAllToDb = async () => {
+        setSaving(true);
+        try {
+            // First, resolve the system_type_id for the selected system type
+            const typeRes = await fetch(`/api/system-types`);
+            const typeData = await typeRes.json();
+            let systemTypeId: string | null = null;
+            if (typeData.success && typeData.data) {
+                const found = typeData.data.find((t: any) => t.name === selectedSystemType);
+                if (found) systemTypeId = found.id;
+            }
+
+            // Delete existing components for this system type, then insert new ones
+            // We'll use a batch approach via a custom endpoint
+            const res = await fetch(`/api/components/batch`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    system_type: selectedSystemType,
+                    system_type_id: systemTypeId,
+                    components: components.map((c, i) => ({
+                        name: c.name,
+                        description: c.description,
+                        default_quantity: c.default_quantity,
+                        default_make: c.default_make,
+                        sort_order: i,
+                        is_default: c.is_default,
+                    })),
+                }),
+            });
+
+            const result = await res.json();
+            if (result.success) {
+                setHasUnsavedChanges(false);
+                setNotification({ open: true, message: `✅ ${components.length} components saved to database for ${selectedSystemType}!`, severity: "success" });
+                // Refresh to get DB IDs
+                fetchComponents(selectedSystemType);
+            } else {
+                throw new Error(result.message || "Failed to save");
+            }
+        } catch (error) {
+            setNotification({ open: true, message: `Failed to save: ${(error as any).message}`, severity: "error" });
+        }
+        setSaving(false);
+    };
+
+    // Reset to hardcoded defaults
+    const handleResetToDefaults = () => {
+        if (!confirm("Reset to hardcoded defaults? This will discard any changes. You'll need to Save to make it permanent.")) return;
+        setComponents(getHardcodedDefaults(selectedSystemType));
+        setHasUnsavedChanges(true);
+        setNotification({ open: true, message: "Reset to defaults. Click 'Save All to Database' to persist.", severity: "warning" });
     };
 
     return (
@@ -181,10 +267,33 @@ export default function ComponentsAdminPage() {
                         <Typography variant="h4" fontWeight="bold">
                             Component Management
                         </Typography>
+                        {hasUnsavedChanges && (
+                            <Chip label="Unsaved Changes" color="warning" size="small" sx={{ fontWeight: "bold" }} />
+                        )}
                     </Box>
-                    <Button variant="contained" startIcon={<Add />} onClick={() => handleOpenDialog()}>
-                        Add Component
-                    </Button>
+                    <Box sx={{ display: "flex", gap: 1 }}>
+                        <Button
+                            variant="outlined"
+                            startIcon={<Restore />}
+                            onClick={handleResetToDefaults}
+                            color="warning"
+                        >
+                            Reset Defaults
+                        </Button>
+                        <Button variant="outlined" startIcon={<Add />} onClick={() => handleOpenDialog()}>
+                            Add Component
+                        </Button>
+                        <Button
+                            variant="contained"
+                            startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <Save />}
+                            onClick={handleSaveAllToDb}
+                            disabled={saving}
+                            color={hasUnsavedChanges ? "warning" : "primary"}
+                            sx={{ fontWeight: "bold" }}
+                        >
+                            {saving ? "Saving..." : "Save All to Database"}
+                        </Button>
+                    </Box>
                 </Box>
 
                 {/* System Type Selector */}
@@ -198,7 +307,10 @@ export default function ComponentsAdminPage() {
                                 <Chip
                                     key={type.id}
                                     label={type.name}
-                                    onClick={() => setSelectedSystemType(type.id)}
+                                    onClick={() => {
+                                        if (hasUnsavedChanges && !confirm("You have unsaved changes. Switch anyway?")) return;
+                                        setSelectedSystemType(type.id);
+                                    }}
                                     color={selectedSystemType === type.id ? "primary" : "default"}
                                     variant={selectedSystemType === type.id ? "filled" : "outlined"}
                                 />
@@ -275,7 +387,7 @@ export default function ComponentsAdminPage() {
 
                 {/* Info */}
                 <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 2, textAlign: "center" }}>
-                    Note: Changes here update the default components template. Each quotation can still customize its own components.
+                    Edit components above, then click &quot;Save All to Database&quot; to persist. Changes will reflect on the home page quotation builder.
                 </Typography>
             </Box>
 

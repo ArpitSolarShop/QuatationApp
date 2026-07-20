@@ -17,9 +17,11 @@ import {
     CircularProgress,
     TextField,
     InputAdornment,
+    Tooltip,
 } from "@mui/material";
-import { ArrowBack, Visibility, Delete, Search, WhatsApp } from "@mui/icons-material";
+import { ArrowBack, Visibility, Delete, Search, WhatsApp, Edit } from "@mui/icons-material";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 type Quotation = {
     id: string;
@@ -31,6 +33,7 @@ type Quotation = {
     status: string;
     created_at: string;
     pdf_url?: string;
+    form_data?: any;
 };
 
 export default function QuotationsAdminPage() {
@@ -39,6 +42,7 @@ export default function QuotationsAdminPage() {
     const [searchQuery, setSearchQuery] = useState("");
     const [startDate, setStartDate] = useState("");
     const [endDate, setEndDate] = useState("");
+    const router = useRouter();
 
     const fetchQuotations = async () => {
         try {
@@ -72,6 +76,11 @@ export default function QuotationsAdminPage() {
         }
     };
 
+    const handleEdit = (quotation: Quotation) => {
+        // Navigate to home page with edit parameter
+        router.push(`/?edit=${quotation.id}`);
+    };
+
     const formatCurrency = (amount: number | null) => {
         if (amount === null) return "-";
         return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(amount);
@@ -89,6 +98,8 @@ export default function QuotationsAdminPage() {
         switch (status) {
             case "draft":
                 return "warning";
+            case "saved":
+                return "primary";
             case "sent":
                 return "info";
             case "accepted":
@@ -220,15 +231,26 @@ export default function QuotationsAdminPage() {
                                                 </TableCell>
                                                 <TableCell>{formatDate(quotation.created_at)}</TableCell>
                                                 <TableCell align="center">
-                                                    <IconButton size="small" title="View PDF" onClick={() => quotation.pdf_url ? window.open(quotation.pdf_url, '_blank') : alert('PDF not available for this quotation.')}>
-                                                        <Visibility fontSize="small" color={quotation.pdf_url ? "primary" : "inherit"} />
-                                                    </IconButton>
-                                                    <IconButton size="small" color="success" title="Send via WhatsApp">
-                                                        <WhatsApp fontSize="small" />
-                                                    </IconButton>
-                                                    <IconButton size="small" color="error" onClick={() => handleDelete(quotation.id)} title="Delete">
-                                                        <Delete fontSize="small" />
-                                                    </IconButton>
+                                                    <Tooltip title="Edit & Re-send">
+                                                        <IconButton size="small" color="primary" onClick={() => handleEdit(quotation)}>
+                                                            <Edit fontSize="small" />
+                                                        </IconButton>
+                                                    </Tooltip>
+                                                    <Tooltip title="View PDF">
+                                                        <IconButton size="small" onClick={() => quotation.pdf_url ? window.open(quotation.pdf_url, '_blank') : alert('PDF not available for this quotation.')}>
+                                                            <Visibility fontSize="small" color={quotation.pdf_url ? "primary" : "inherit"} />
+                                                        </IconButton>
+                                                    </Tooltip>
+                                                    <Tooltip title="Send via WhatsApp">
+                                                        <IconButton size="small" color="success">
+                                                            <WhatsApp fontSize="small" />
+                                                        </IconButton>
+                                                    </Tooltip>
+                                                    <Tooltip title="Delete">
+                                                        <IconButton size="small" color="error" onClick={() => handleDelete(quotation.id)}>
+                                                            <Delete fontSize="small" />
+                                                        </IconButton>
+                                                    </Tooltip>
                                                 </TableCell>
                                             </TableRow>
                                         ))}

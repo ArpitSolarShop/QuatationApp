@@ -55,3 +55,19 @@ WHERE NOT EXISTS (SELECT 1 FROM system_types WHERE name = 'Hybrid');
 INSERT INTO system_types (name, description)
 SELECT 'VFD/Drive', 'Solar Pump Drive'
 WHERE NOT EXISTS (SELECT 1 FROM system_types WHERE name = 'VFD/Drive');
+
+-- Add form_data column for round-trip editing of quotations
+ALTER TABLE quotations ADD COLUMN IF NOT EXISTS form_data JSONB;
+
+-- Create Components Table (if missing)
+CREATE TABLE IF NOT EXISTS components (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  system_type_id UUID REFERENCES system_types(id),
+  name TEXT NOT NULL,
+  description TEXT,
+  default_quantity TEXT DEFAULT '1 Nos',
+  default_make TEXT DEFAULT 'Standard',
+  sort_order INTEGER DEFAULT 0,
+  is_default BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);

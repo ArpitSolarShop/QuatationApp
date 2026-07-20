@@ -46,6 +46,8 @@ export async function PUT(request: Request, context: RouteContext) {
             components,
             salesperson,
             status,
+            pdf_url,
+            form_data, // NEW: full form state for round-trip editing
         } = body;
 
         // Recalculate GST and totals
@@ -63,29 +65,43 @@ export async function PUT(request: Request, context: RouteContext) {
         );
 
         const supabase = getServerSupabase();
+
+        // Build update object — only include fields that are provided
+        const updateData: any = {
+            customer_name,
+            customer_phone,
+            customer_address,
+            customer_email,
+            system_type_id,
+            capacity_kw,
+            phase,
+            brand,
+            base_price: baseAmount,
+            gst_rate: effectiveGstRate,
+            gst_amount,
+            total_amount,
+            central_subsidy,
+            state_subsidy,
+            terms,
+            components,
+            savings_data: savings,
+            salesperson,
+            status,
+        };
+
+        // Only update pdf_url if provided
+        if (pdf_url !== undefined) {
+            updateData.pdf_url = pdf_url;
+        }
+
+        // Store form_data if provided
+        if (form_data !== undefined) {
+            updateData.form_data = form_data;
+        }
+
         const { data, error } = await supabase
             .from('quotations')
-            .update({
-                customer_name,
-                customer_phone,
-                customer_address,
-                customer_email,
-                system_type_id,
-                capacity_kw,
-                phase,
-                brand,
-                base_price: baseAmount,
-                gst_rate: effectiveGstRate,
-                gst_amount,
-                total_amount,
-                central_subsidy,
-                state_subsidy,
-                terms,
-                components,
-                savings_data: savings,
-                salesperson,
-                status,
-            })
+            .update(updateData)
             .eq('id', id)
             .select()
             .single();

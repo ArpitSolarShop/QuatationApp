@@ -54,6 +54,7 @@ export async function POST(request: Request) {
             salesperson,
             pdf_url,
             status,
+            form_data, // NEW: full form state for round-trip editing
         } = body;
 
         if (!customer_name) {
@@ -121,6 +122,7 @@ export async function POST(request: Request) {
                 salesperson: salesperson || null,
                 status: status || 'draft',
                 pdf_url: pdf_url || null,
+                form_data: form_data || null, // NEW: store full form state
             }])
             .select()
             .single();
