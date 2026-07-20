@@ -16,9 +16,11 @@ export async function POST(request: Request) {
   try {
     const quoteData = await request.json();
 
-    // Basic input validation (minimal schema without external deps)
-    if (!quoteData?.customerInfo?.name || !quoteData?.customerInfo?.phone) {
-      return NextResponse.json({ message: 'Customer name and phone are required.' }, { status: 400 });
+    if (!quoteData?.customerInfo?.name) {
+      return NextResponse.json({ message: 'Customer name is required.' }, { status: 400 });
+    }
+    if (!quoteData?.skipWhatsApp && !quoteData?.customerInfo?.phone) {
+      return NextResponse.json({ message: 'Customer phone is required for WhatsApp.' }, { status: 400 });
     }
     if (!quoteData?.selectedProduct) {
       return NextResponse.json({ message: 'Selected product is required.' }, { status: 400 });
