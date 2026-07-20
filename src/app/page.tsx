@@ -605,7 +605,7 @@ function QuotationBuilder() {
     setLoading(true);
     setNotification({ open: true, message: "Generating PDF and preparing print...", severity: "info" });
     try {
-      await generateAndSavePdf('sent');
+      await generateAndSavePdf('Printed');
       handlePrint();
       setNotification({ open: true, message: "✅ Quotation saved and printed!", severity: "success" });
     } catch (error) {
@@ -635,7 +635,7 @@ function QuotationBuilder() {
       const result = await response.json();
 
       if (response.ok) {
-        saveToDatabase(result.url, "sent");
+        saveToDatabase(result.url, "WhatsApp Sent");
         setNotification({ open: true, message: "Quotation PDF queued for WhatsApp delivery. It may take a moment to reach the customer.", severity: "success" });
       } else {
         throw new Error(result.message || "Failed to send WhatsApp");
@@ -660,7 +660,7 @@ function QuotationBuilder() {
     try {
       // Generate and save PDF first
       try {
-        await generateAndSavePdf('sent');
+        await generateAndSavePdf('Emailed');
       } catch { /* PDF save failure shouldn't block email */ }
 
       const response = await fetch("/api/send-email", {

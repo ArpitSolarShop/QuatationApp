@@ -99,9 +99,14 @@ export default function QuotationsAdminPage() {
             case "draft":
                 return "warning";
             case "saved":
-                return "primary";
-            case "sent":
+                return "default";
+            case "Printed":
+                return "secondary";
+            case "Emailed":
                 return "info";
+            case "WhatsApp Sent":
+            case "sent":
+                return "success";
             case "accepted":
                 return "success";
             case "rejected":
@@ -182,6 +187,25 @@ export default function QuotationsAdminPage() {
                             sx={{ width: 250 }}
                         />
                     </Box>
+                </Box>
+
+                {/* Status Legend */}
+                <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", mb: 3, alignItems: "center", bgcolor: "white", p: 2, borderRadius: 2, border: "1px solid #e2e8f0" }}>
+                    <Typography variant="body2" color="text.secondary" sx={{ mr: 1, fontWeight: "bold" }}>Status Guide:</Typography>
+                    <Chip label="Draft" size="small" color="warning" />
+                    <Typography variant="caption" color="text.secondary" sx={{ mr: 2 }}>Not saved</Typography>
+                    
+                    <Chip label="Saved" size="small" color="default" />
+                    <Typography variant="caption" color="text.secondary" sx={{ mr: 2 }}>Only saved</Typography>
+                    
+                    <Chip label="Printed" size="small" color="secondary" />
+                    <Typography variant="caption" color="text.secondary" sx={{ mr: 2 }}>Printed to PDF</Typography>
+                    
+                    <Chip label="Emailed" size="small" color="info" />
+                    <Typography variant="caption" color="text.secondary" sx={{ mr: 2 }}>Sent via Email</Typography>
+                    
+                    <Chip label="WhatsApp Sent" size="small" color="success" />
+                    <Typography variant="caption" color="text.secondary">Sent via WhatsApp</Typography>
                 </Box>
 
                 {/* Quotations Table */}
