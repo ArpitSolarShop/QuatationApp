@@ -12,11 +12,13 @@ export async function GET(request: Request) {
         const supabase = getServerSupabase();
         let query = supabase
             .from('components')
-            .select('*, system_types(name)')
+            .select('*, system_types!inner(name)')
             .order('sort_order', { ascending: true });
 
         if (systemTypeId) {
             query = query.eq('system_type_id', systemTypeId);
+        } else if (systemTypeName) {
+            query = query.eq('system_types.name', systemTypeName);
         }
 
         const { data, error } = await query;
