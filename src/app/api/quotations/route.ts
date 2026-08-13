@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerSupabase } from '@/lib/supabase';
 import { generateQuoteNumber, gstConfig, calculateSavings, getSubsidyForCapacity } from '@/lib/companyDetails';
-import { sendKit19Enquiry } from '@/lib/kit19';
 
 // GET - List all quotations
 export async function GET(request: Request) {
@@ -127,15 +126,6 @@ export async function POST(request: Request) {
             .select()
             .single();
         if (error) throw error;
-
-        // Send Enquiry to Kit19
-        await sendKit19Enquiry({
-            name: customer_name,
-            phone: customer_phone || "",
-            email: customer_email || "",
-            address: customer_address || "",
-            systemKw: capacity_kw || "",
-        });
 
         return NextResponse.json({ success: true, data });
     } catch (error) {
