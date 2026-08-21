@@ -63,7 +63,7 @@ export async function POST(request: Request) {
 
     // Load Static Payment QR Code
     let qrCodeUrl = '';
-    const upiLink = `upi://pay?pa=${quoteData.companyDetails?.bank?.upiId || '9044555574@okbizaxis'}&pn=${encodeURIComponent(quoteData.companyDetails?.name || 'Arpit Solar Shop')}&am=${grandTotal}&cu=INR`;
+    const upiLink = `upi://pay?pa=${quoteData.companyDetails?.bank?.upiId || 'vyapar.173575988777@hdfcbank'}&pn=${encodeURIComponent(quoteData.companyDetails?.name || 'Arpit Solar Shop')}&am=${grandTotal}&cu=INR`;
 
     try {
       const qrPath = path.join(process.cwd(), 'public', 'payment.png');

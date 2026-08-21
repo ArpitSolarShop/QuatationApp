@@ -14,12 +14,12 @@ export const companies = [
         email: "arpitsolarshop@gmail.com",
         // Bank Details
         bank: {
-            name: "Bank of Baroda",
+            name: "HDFC Bank",
             branch: "Shivpur, Varanasi",
-            accountName: "Arpit Solar Shop",
-            accountNumber: "28660200000614",
-            ifsc: "BARB0SHIVBS",
-            upiId: "9044555574@okbizaxis",
+            accountName: "ARPIT SOLAR SHOP",
+            accountNumber: "50200123854806",
+            ifsc: "HDFC0004807",
+            upiId: "vyapar.173575988777@hdfcbank",
         },
         // Logo
         logo: "/logo.png",
@@ -42,12 +42,12 @@ export const companies = [
         email: "",
         // Bank Details
         bank: {
-            name: "",
-            branch: "",
-            accountName: "KRISHNANUJA RENEWABLES PRIVATE LIMITED",
-            accountNumber: "",
-            ifsc: "",
-            upiId: "9044555572@okbizaxis", // Optional fallback
+            name: "State Bank of India",
+            branch: "Phulwariya, Varanasi",
+            accountName: "Krishnanuja Renewables Private Limited",
+            accountNumber: "45174224440",
+            ifsc: "SBIN0064799",
+            upiId: "", // No UPI available yet
         },
         // Logo
         logo: "/krishnanuja.png",
